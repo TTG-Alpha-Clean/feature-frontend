@@ -19,7 +19,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [role, setRole] = useState<"user" | "admin">("user");
+  // Todas as contas criadas via formulário são usuários comuns
+  const role = "user";
 
   const [ddd, setDDD] = useState("");
   const [numero, setNumero] = useState("");
@@ -142,15 +143,14 @@ export default function RegisterPage() {
                 <Input
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
-                  placeholder="99660-1709"
+                  placeholder="999661709"
                   className="h-10 border-[#022744]/15 focus:ring-2 focus:ring-[#9BD60C]"
                 />
               </div>
             </div>
 
-            {/* Toggle WhatsApp */}
-
-            <div className="grid grid-cols-2">
+            {/* Toggle WhatsApp + Botão Adicionar */}
+            <div className="grid grid-cols-2 gap-4">
               <Toggle checked={whats} onChange={setWhats} label="WhatsApp" />
               <button
                 type="button"
@@ -161,6 +161,7 @@ export default function RegisterPage() {
               </button>
             </div>
 
+            {/* Lista de telefones adicionados */}
             {telefones.length > 0 && (
               <ul className="mt-1 space-y-2">
                 {telefones.map((t, i) => (

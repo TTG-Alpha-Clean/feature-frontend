@@ -1,3 +1,4 @@
+// src/components/forms/editAgendamentoForm.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -14,6 +15,18 @@ import {
 import { toast } from "react-hot-toast";
 import { Clock } from "lucide-react";
 
+interface Agendamento {
+  id: string;
+  modelo_veiculo: string;
+  cor: string;
+  placa: string;
+  servico: string;
+  data: string;
+  horario: string;
+  observacoes: string;
+  status: string;
+}
+
 type ServicoOption = { id: string; nome: string };
 type SlotInfo = {
   horario: string;
@@ -23,8 +36,9 @@ type SlotInfo = {
 };
 
 interface Props {
+  agendamento: Agendamento;
   onClose: () => void;
-  onCreated?: () => void;
+  onUpdated?: () => void;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
@@ -54,14 +68,18 @@ function formatHorarioBR(horario24: string): string {
   }
 }
 
-export function NewAgendamentoForm({ onClose, onCreated }: Props) {
-  const [modelo_veiculo, setModelo] = useState("");
-  const [cor, setCor] = useState("");
-  const [placa, setPlaca] = useState("");
-  const [servico, setServico] = useState("");
-  const [data, setData] = useState(todayISO());
-  const [horario, setHorario] = useState("");
-  const [observacoes, setObservacoes] = useState("");
+export function EditAgendamentoForm({
+  agendamento,
+  onClose,
+  onUpdated,
+}: Props) {
+  const [modelo_veiculo, setModelo] = useState(agendamento.modelo_veiculo);
+  const [cor, setCor] = useState(agendamento.cor || "");
+  const [placa, setPlaca] = useState(agendamento.placa);
+  const [servico, setServico] = useState(agendamento.servico);
+  const [data, setData] = useState(agendamento.data);
+  const [horario, setHorario] = useState(agendamento.horario);
+  const [observacoes, setObservacoes] = useState(agendamento.observacoes || "");
 
   // Estados para slots disponíveis
   const [slots, setSlots] = useState<SlotInfo[]>([]);
@@ -111,23 +129,46 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
 
     if (data) {
       loadSlots(data);
-      setHorario(""); // Reset horário quando muda a data
     }
   }, [data]);
 
   const validate = () => {
-    if (!modelo_veiculo || !placa || !servico || !data || !horario) {
-      toast.error("Preencha todos os campos obrigatórios.");
+    if (!modelo_veiculo.trim()) {
+      toast.error("Modelo do veículo é obrigatório.");
       return false;
     }
+
+    if (!placa.trim()) {
+      toast.error("Placa é obrigatória.");
+      return false;
+    }
+
+    if (!servico.trim()) {
+      toast.error("Serviço é obrigatório.");
+      return false;
+    }
+
+    if (!data.trim()) {
+      toast.error("Data é obrigatória.");
+      return false;
+    }
+
+    if (!horario.trim()) {
+      toast.error("Horário é obrigatório.");
+      return false;
+    }
+
     if (!PLACA_REGEX_DB.test(placa)) {
       toast.error("Placa inválida. Use o formato AAA-9999 (ex.: ABC-1234).");
       return false;
     }
 
-    // Verifica se o horário selecionado está disponível
+    // Verifica se o horário selecionado está disponível OU é o horário atual do agendamento
     const selectedSlot = slots.find((slot) => slot.horario === horario);
-    if (!selectedSlot || selectedSlot.disponivel <= 0) {
+    const isCurrentSlot =
+      agendamento.horario === horario && agendamento.data === data;
+
+    if (!isCurrentSlot && (!selectedSlot || selectedSlot.disponivel <= 0)) {
       toast.error("Horário selecionado não está mais disponível.");
       return false;
     }
@@ -140,11 +181,28 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
     if (!validate()) return;
 
     setSubmitting(true);
-    const tid = toast.loading("Agendando serviço...");
+    const tid = toast.loading("Atualizando agendamento...");
 
     try {
-      const res = await fetch(`${API_URL}/api/agendamentos`, {
-        method: "POST",
+      // ✅ Verifica se houve mudanças
+      const hasChanges =
+        modelo_veiculo !== agendamento.modelo_veiculo ||
+        cor !== (agendamento.cor || "") ||
+        placa !== agendamento.placa ||
+        servico !== agendamento.servico ||
+        data !== agendamento.data ||
+        horario !== agendamento.horario ||
+        observacoes !== (agendamento.observacoes || "");
+
+      if (!hasChanges) {
+        toast.success("Nenhuma alteração detectada.", { id: tid });
+        onClose();
+        return;
+      }
+
+      // ✅ Usa a nova rota PUT para edição completa
+      const res = await fetch(`${API_URL}/api/agendamentos/${agendamento.id}`, {
+        method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -160,23 +218,42 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
 
       if (!res.ok) {
         const d = await res.json().catch(() => null);
-        const errorMessage = d?.error || "Erro ao criar agendamento.";
-        console.error("Erro do servidor:", errorMessage);
+        const errorMessage = d?.error || "Erro ao atualizar agendamento.";
         throw new Error(errorMessage);
       }
 
-      toast.success("Agendamento criado com sucesso!", { id: tid });
-      onCreated?.();
+      toast.success("Agendamento atualizado com sucesso!", { id: tid });
+      onUpdated?.();
       onClose();
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao agendar serviço.", { id: tid });
+      console.error("Erro ao atualizar agendamento:", err);
+      toast.error(err?.message || "Erro ao atualizar agendamento.", {
+        id: tid,
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Função para detectar se o agendamento pode ser editado completamente
+  const canEditCompletely = agendamento.status === "agendado";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* ✅ Aviso se não pode editar completamente */}
+      {!canEditCompletely && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-600">⚠️</span>
+            <p className="text-sm text-yellow-800">
+              <strong>Atenção:</strong> Este agendamento não pode ser editado
+              pois está com status "{agendamento.status}". Apenas agendamentos
+              com status "agendado" podem ser modificados.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Veículo */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
@@ -185,7 +262,10 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
             placeholder="Ex: Corolla 2023"
             value={modelo_veiculo}
             onChange={(e) => setModelo(e.target.value)}
-            disabled={submitting}
+            disabled={!canEditCompletely || submitting}
+            className={
+              !canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""
+            }
           />
         </div>
         <div>
@@ -194,7 +274,10 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
             placeholder="Ex: Prata"
             value={cor}
             onChange={(e) => setCor(e.target.value)}
-            disabled={submitting}
+            disabled={!canEditCompletely || submitting}
+            className={
+              !canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""
+            }
           />
         </div>
       </div>
@@ -208,7 +291,10 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
             value={placa}
             onChange={(e) => setPlaca(normalizePlacaDB(e.target.value))}
             maxLength={8}
-            disabled={submitting}
+            disabled={!canEditCompletely || submitting}
+            className={
+              !canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""
+            }
           />
         </div>
         <div>
@@ -216,9 +302,13 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
           <Select
             value={servico}
             onValueChange={setServico}
-            disabled={submitting}
+            disabled={!canEditCompletely || submitting}
           >
-            <SelectTrigger>
+            <SelectTrigger
+              className={
+                !canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""
+              }
+            >
               <SelectValue placeholder="Selecione um serviço" />
             </SelectTrigger>
             <SelectContent>
@@ -240,7 +330,8 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
           min={todayISO()}
           value={data}
           onChange={(e) => setData(e.target.value)}
-          disabled={submitting}
+          disabled={submitting || !canEditCompletely}
+          className={!canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""}
         />
       </div>
 
@@ -291,19 +382,26 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
               {slots.map((slot) => {
                 const isSelected = horario === slot.horario;
                 const isAvailable = slot.disponivel > 0;
+                const isCurrentSlot =
+                  agendamento.horario === slot.horario &&
+                  agendamento.data === data;
 
                 return (
                   <button
                     key={slot.horario}
                     type="button"
-                    disabled={!isAvailable || submitting}
+                    disabled={
+                      (!isAvailable && !isCurrentSlot) ||
+                      submitting ||
+                      !canEditCompletely
+                    }
                     onClick={() => setHorario(slot.horario)}
                     className={`
                       p-3 rounded-lg border-2 transition-all font-medium text-sm
                       ${
-                        isSelected && isAvailable
+                        isSelected && (isAvailable || isCurrentSlot)
                           ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                          : isAvailable
+                          : isAvailable || isCurrentSlot
                           ? "border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--foreground)] hover:border-[var(--accent)] hover:bg-[var(--accent)]/10"
                           : "border-red-200 bg-red-50 text-red-400 cursor-not-allowed"
                       }
@@ -314,7 +412,7 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
                       {formatHorarioBR(slot.horario)}
                     </div>
                     <div className="text-xs mt-1">
-                      {isAvailable
+                      {isAvailable || isCurrentSlot
                         ? `${slot.disponivel} vaga${
                             slot.disponivel !== 1 ? "s" : ""
                           }`
@@ -347,8 +445,8 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
           placeholder="Preferências, detalhes do veículo, etc."
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
-          disabled={submitting}
-          rows={3}
+          disabled={!canEditCompletely || submitting}
+          className={!canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""}
         />
       </div>
 
@@ -364,10 +462,10 @@ export function NewAgendamentoForm({ onClose, onCreated }: Props) {
         </button>
         <button
           type="submit"
-          disabled={submitting || !horario}
+          disabled={submitting || !horario || !canEditCompletely}
           className="px-6 py-2 rounded-lg bg-[var(--accent)] text-[var(--accent-contrast)] font-medium transition-all hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "Agendando..." : "Confirmar Agendamento"}
+          {submitting ? "Salvando..." : "Salvar Alterações"}
         </button>
       </div>
     </form>

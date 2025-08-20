@@ -2,7 +2,7 @@
 
 import AuthLayout from "@/components/navigation/auth-layout";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ type LoginResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,19 +31,34 @@ export default function LoginPage() {
     e.preventDefault();
     const tid = toast.loading("Entrando...");
     setLoading(true);
+
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
-        credentials: "include",
+        credentials: "include", // Importante para cookies
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, senha }),
       });
+
       const data: any = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Erro ao entrar.");
 
       toast.success("Bem-vindo!", { id: tid });
+
       const role = (data as LoginResponse).user.role;
-      router.push(role === "admin" ? "/admin" : "/dashboard");
+
+      // Verifica se há uma página para redirecionar
+      const nextUrl = searchParams.get("next");
+
+      if (
+        nextUrl &&
+        (nextUrl.startsWith("/cliente") || nextUrl.startsWith("/admin"))
+      ) {
+        router.push(nextUrl);
+      } else {
+        // Redireciona baseado no role
+        router.push(role === "admin" ? "/admin" : "/cliente");
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erro ao entrar.", { id: tid });
     } finally {
