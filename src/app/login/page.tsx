@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -40,7 +41,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, senha }),
       });
 
-      const data: any = await res.json().catch(() => ({}));
+      const data: { error?: string } = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Erro ao entrar.");
 
       toast.success("Bem-vindo!", { id: tid });
@@ -59,8 +60,10 @@ export default function LoginPage() {
         // Redireciona baseado no role
         router.push(role === "admin" ? "/admin" : "/cliente");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao entrar.", { id: tid });
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro ao entrar.";
+      toast.error(errorMessage, { id: tid });
     } finally {
       setLoading(false);
     }
@@ -106,9 +109,9 @@ export default function LoginPage() {
         </form>
 
         <div className="text-center mt-4">
-          <a href="/register" className="text-[#9BD60C] hover:underline">
+          <Link href="/register" className="text-[#9BD60C] hover:underline">
             Não tem conta? Cadastre-se
-          </a>
+          </Link>
         </div>
       </div>
     </AuthLayout>

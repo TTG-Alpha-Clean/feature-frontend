@@ -61,8 +61,10 @@ export default function RegisterPage() {
 
       toast.success("Conta criada! Faça login.", { id: tid });
       router.push("/login");
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao cadastrar.", { id: tid });
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Erro ao cadastrar.";
+      toast.error(errorMessage, { id: tid });
     } finally {
       setLoading(false);
     }
