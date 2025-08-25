@@ -22,6 +22,15 @@ interface Props {
   onClose: () => void;
 }
 
+interface ApiError {
+  error?: string;
+}
+
+interface FormData {
+  nome: string;
+  valor: string;
+}
+
 export function ServicosManagement({
   servicos,
   onServicoChange,
@@ -29,17 +38,17 @@ export function ServicosManagement({
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [formData, setFormData] = useState({ nome: "", valor: "" });
+  const [formData, setFormData] = useState<FormData>({ nome: "", valor: "" });
   const [loading, setLoading] = useState(false);
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
     }).format(value);
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (): Promise<void> => {
     if (!formData.nome.trim() || !formData.valor) {
       toast.error("Nome e valor são obrigatórios");
       return;
@@ -58,7 +67,7 @@ export function ServicosManagement({
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => null);
+        const error: ApiError = await res.json().catch(() => ({}));
         throw new Error(error?.error || "Erro ao criar serviço");
       }
 
@@ -66,14 +75,16 @@ export function ServicosManagement({
       setFormData({ nome: "", valor: "" });
       setIsCreating(false);
       onServicoChange();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao criar serviço");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao criar serviço";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = async (servico: Servico) => {
+  const handleEdit = async (servico: Servico): Promise<void> => {
     if (!formData.nome.trim() || !formData.valor) {
       toast.error("Nome e valor são obrigatórios");
       return;
@@ -92,7 +103,7 @@ export function ServicosManagement({
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => null);
+        const error: ApiError = await res.json().catch(() => ({}));
         throw new Error(error?.error || "Erro ao editar serviço");
       }
 
@@ -100,14 +111,16 @@ export function ServicosManagement({
       setEditingId(null);
       setFormData({ nome: "", valor: "" });
       onServicoChange();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao editar serviço");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao editar serviço";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (servico: Servico) => {
+  const handleDelete = async (servico: Servico): Promise<void> => {
     if (
       !confirm(`Tem certeza que deseja excluir o serviço "${servico.nome}"?`)
     ) {
@@ -122,25 +135,27 @@ export function ServicosManagement({
       });
 
       if (!res.ok) {
-        const error = await res.json().catch(() => null);
+        const error: ApiError = await res.json().catch(() => ({}));
         throw new Error(error?.error || "Erro ao excluir serviço");
       }
 
       toast.success("Serviço removido com sucesso!");
       onServicoChange();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao excluir serviço");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao excluir serviço";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  const startEditing = (servico: Servico) => {
+  const startEditing = (servico: Servico): void => {
     setEditingId(servico.id);
     setFormData({ nome: servico.nome, valor: servico.valor.toString() });
   };
 
-  const cancelEditing = () => {
+  const cancelEditing = (): void => {
     setEditingId(null);
     setIsCreating(false);
     setFormData({ nome: "", valor: "" });

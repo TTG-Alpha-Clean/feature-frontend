@@ -1,5 +1,4 @@
-// src/app/admin/page.tsx - VERSÃO FINAL CORRIGIDA
-
+// src/app/admin/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -20,7 +19,7 @@ import {
   type AdminServiceItem,
 } from "@/components/lists/adminServiceList";
 import { CarLogo } from "@/components/ui/carLogo";
-import { ServicosManagement } from "@/components/admin/servicosManagement";
+import { ServicosManagement } from "@/components/serviceManagement";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -122,7 +121,7 @@ export default function AdminDashboardPage() {
     }
   }, [user, refreshKey]);
 
-  // Buscar TODOS os agendamentos (admin vê tudo) - CORRIGIDO JOIN
+  // Buscar TODOS os agendamentos (admin vê tudo)
   useEffect(() => {
     if (!user || user.role !== "admin") return;
 
@@ -147,7 +146,7 @@ export default function AdminDashboardPage() {
 
         const data = await res.json();
 
-        // Defina a interface para o item retornado pela API
+        // Interface para o item retornado pela API
         interface AgendamentoApiItem {
           id: string;
           data: string;
@@ -163,7 +162,6 @@ export default function AdminDashboardPage() {
           usuario_id: string;
           usuario_nome?: string;
           usuario_email?: string;
-          usuario_telefone?: string;
           created_at: string;
           updated_at: string;
         }
@@ -203,7 +201,7 @@ export default function AdminDashboardPage() {
                 id: item.usuario_id,
                 nome: item.usuario_nome || "Cliente não encontrado",
                 email: item.usuario_email || "",
-                telefone: item.usuario_telefone || "",
+                telefone: "",
               },
               created_at: item.created_at,
               updated_at: item.updated_at,
@@ -275,14 +273,15 @@ export default function AdminDashboardPage() {
 
   // Receita do dia atual
   const hoje = new Date().toISOString().split("T")[0];
+  // No arquivo admin/page.tsx
   const receitaHoje = agendamentos
-    .filter((a) => a.status === "finalizado" && a.data === hoje)
+    .filter((a) => a.status === "finalizado" && a.data === hoje) // Mudança aqui
     .reduce((sum, a) => sum + (a.valor || 0), 0);
 
   // Receita do mês atual
   const mesAtual = new Date().toISOString().substring(0, 7); // YYYY-MM
   const receitaMes = agendamentos
-    .filter((a) => a.status === "finalizado" && a.data?.startsWith(mesAtual))
+    .filter((a) => a.status === "finalizado" && a.data?.startsWith(mesAtual)) // Mudança aqui
     .reduce((sum, a) => sum + (a.valor || 0), 0);
 
   const formatCurrency = (value: number) => {
@@ -343,11 +342,11 @@ export default function AdminDashboardPage() {
           />
         ) : (
           <>
-            {/* Estatísticas - LAYOUT 2 LINHAS: 4 + 3 */}
+            {/* ✅ ESTATÍSTICAS - LAYOUT 2 LINHAS: 4 + 3 CARDS */}
             <div className="space-y-4 mb-8">
               {/* Primeira linha - 4 cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Calendar className="w-5 h-5 text-blue-600" />
@@ -363,7 +362,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
                       <Clock className="w-5 h-5 text-yellow-600" />
@@ -379,7 +378,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-orange-600" />
@@ -395,7 +394,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <Users className="w-5 h-5 text-green-600" />
@@ -414,7 +413,7 @@ export default function AdminDashboardPage() {
 
               {/* Segunda linha - 3 cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
                       <Users className="w-5 h-5 text-red-600" />
@@ -430,7 +429,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <DollarSign className="w-5 h-5 text-green-600" />
@@ -446,7 +445,7 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-[var(--card)] rounded-xl p-4 shadow-sm">
+                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                       <DollarSign className="w-5 h-5 text-emerald-600" />
@@ -470,6 +469,13 @@ export default function AdminDashboardPage() {
                 <h2 className="text-xl font-semibold text-[var(--foreground)]">
                   Todos os Agendamentos ({agendamentos.length})
                 </h2>
+                <button
+                  onClick={handleRefresh}
+                  className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                >
+                  {loading ? "Carregando..." : "Atualizar"}
+                </button>
               </div>
 
               {loading ? (
