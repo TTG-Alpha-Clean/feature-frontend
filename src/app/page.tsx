@@ -6,6 +6,7 @@ import Header from "../components/navigation/header";
 import AboutSection from "../components/sections/aboutSection";
 import ContactSection from "../components/sections/contactSection";
 import HeroSection from "../components/sections/heroSection";
+import ServicesSection from "@/components/sections/servicesSection";
 
 export default function Home() {
   return (
@@ -23,6 +24,22 @@ export default function Home() {
       </div>
 
       <AboutSection />
+
+      <div className="text-center mt-12">
+        <h2 className="text-3xl font-bold text-[var(--primary)] mb-4">
+          Nossos Serviços
+        </h2>
+        <p className="text-lg text-[var(--muted-foreground)] max-w-3xl mx-auto">
+          Oferecemos uma gama completa de serviços para manter seu veículo sempre impecável. Escolha o serviço que melhor atende suas necessidades.
+        </p>
+         <section className="container mx-auto px-4 py-10">
+        <ServicesSection
+          variant="compact"
+          endpoint="http://localhost:3001/services"
+          className="mt-12"
+        />
+      </section>
+      </div>
 
       <ServiceBanner />
       <div className="text-center mt-12">

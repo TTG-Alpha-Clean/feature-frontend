@@ -31,7 +31,7 @@ export default function Header({ currentPage = "home" }: HeaderProps) {
           <ul className="flex gap-8">
             <li className="relative">
               <Link
-                href="/home"
+                href="/"
                 className={`text-lg font-medium transition-all duration-300 hover:text-[var(--accent)] ${
                   currentPage === "home"
                     ? "text-[var(--accent)] after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[2px] after:bg-[var(--accent)] after:rounded-full"
