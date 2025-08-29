@@ -39,17 +39,19 @@ export default function ContactSection() {
           </div>
 
           {/* Email */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-[var(--primary)]/90 rounded-full flex items-center justify-center">
-                <Mail size={20} color="#9bd60c" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 bg-[var(--primary)]/90 rounded-full flex items-center justify-center">
+                <Mail size={18} color="#9bd60c" />
               </div>
-              <h4 className="font-semibold text-[var(--primary)]">Email</h4>
+              <h4 className="font-semibold text-[var(--primary)] text-sm">Email</h4>
             </div>
-            <div className="text-[var(--muted-foreground)]">
+            <div className="text-[var(--muted-foreground)] text-sm break-words">
               <p>contato@alphaclean.com.br</p>
             </div>
-          </div>
+        </div>
+
+
 
           {/* Horários */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
