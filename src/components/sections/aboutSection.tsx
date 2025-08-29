@@ -14,25 +14,27 @@ export default function AboutSection() {
 
           <div className="space-y-4 sm:space-y-6 text-[var(--muted-foreground)] text-base sm:text-lg leading-relaxed">
             <p>
-              Fundado em 2014, o{" "}
-              <strong className="text-[var(--primary)]">Alpha Clean</strong>{" "}
-              nasceu da paixão por automóveis e do compromisso em oferecer
-              serviços de lava jato que realmente fazem a diferença.
+              A <strong className="text-[var(--primary)]">Alpha Clean – Estética Automotiva</strong>{' '}
+              nasceu do sonho de dois amigos, <strong>Lucas Almeida</strong> e <strong>Gabriel Dias</strong>, 
+              apaixonados por carros e movidos pelo desejo de transformar essa paixão em um negócio.
             </p>
 
             <p>
-              Nossa missão é proporcionar aos nossos clientes um atendimento
-              excepcional, utilizando as melhores técnicas e produtos do mercado
-              para garantir que seu veículo receba o cuidado que merece.
+              Desde o início, nosso objetivo sempre foi claro: oferecer um serviço de estética automotiva
+              diferenciado, unindo <strong>qualidade, cuidado e atenção</strong> em cada detalhe.
             </p>
 
             <p>
-              Acreditamos que um carro limpo não é apenas uma questão estética,
-              mas também de preservação do investimento e orgulho do
-              proprietário. Por isso, cada serviço é executado com máxima
-              atenção aos detalhes.
+              Na Alpha Clean, cada veículo é tratado como único. Nosso compromisso é valorizar sua beleza,
+              preservar seu desempenho e entregar resultados que superem expectativas.
+            </p>
+
+            <p>
+              Mais do que um serviço, proporcionamos uma experiência: o cuidado de quem realmente entende 
+              e ama carros.
             </p>
           </div>
+
 
           {/* Valores */}
           <div className="mt-8 sm:mt-10 space-y-4 sm:space-y-6">
@@ -124,7 +126,7 @@ export default function AboutSection() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 mt-16 gap-4 lg:gap-12">
         <AboutCard
-          title="5+"
+          title="2+"
           description="Anos de Experiência"
           icon={Calendar1}
         />

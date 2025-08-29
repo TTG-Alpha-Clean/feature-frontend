@@ -18,8 +18,7 @@ export default function Home() {
           Sobre a Alpha Clean
         </h1>
         <p className="text-lg text-[var(--primary)] max-w-3xl">
-          Mais de cinco anos cuidando do seu veículo com experiência,
-          profissionalismo e dedicação que você merece.
+          Mais do que um serviço, proporcionamos uma experiência: o cuidado de quem realmente entende e ama carros.
         </p>
       </div>
 
