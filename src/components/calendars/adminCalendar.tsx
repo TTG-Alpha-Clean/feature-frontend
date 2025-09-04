@@ -1,4 +1,3 @@
-// src/components/admin/AdminCalendar.tsx
 "use client";
 
 import { useState, useMemo } from "react";
@@ -9,11 +8,13 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react";
-import type { AdminServiceItem } from "@/components/lists/adminServiceList";
+import { AdminServiceItem } from "@/components/lists/adminServiceList";
 
 interface AdminCalendarProps {
   agendamentos: AdminServiceItem[];
-  onDateClick?: (date: string) => void;
+  currentDate: Date;
+  onDateChange: (date: Date) => void;
+  onDayClick?: (date: string, agendamentos: AdminServiceItem[]) => void;
 }
 
 interface DayData {
@@ -25,7 +26,6 @@ interface DayData {
   stats: {
     total: number;
     agendados: number;
-    em_andamento: number;
     finalizados: number;
     cancelados: number;
     receita: number;
@@ -34,32 +34,43 @@ interface DayData {
 
 export function AdminCalendar({
   agendamentos,
-  onDateClick,
+  currentDate,
+  onDateChange,
+  onDayClick,
 }: AdminCalendarProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+
+  // ✅ PROTEÇÃO: Garantir que currentDate sempre seja uma Date válida
+  const safeCurrentDate =
+    currentDate && !isNaN(currentDate.getTime()) ? currentDate : new Date();
 
   // Navegação entre meses
   const goToPreviousMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+    const newDate = new Date(
+      safeCurrentDate.getFullYear(),
+      safeCurrentDate.getMonth() - 1,
+      1
     );
+    onDateChange(newDate);
   };
 
   const goToNextMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+    const newDate = new Date(
+      safeCurrentDate.getFullYear(),
+      safeCurrentDate.getMonth() + 1,
+      1
     );
+    onDateChange(newDate);
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
+    onDateChange(new Date());
   };
 
   // Dados do calendário
   const calendarData = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const year = safeCurrentDate.getFullYear();
+    const month = safeCurrentDate.getMonth();
 
     // Primeiro dia do mês e último dia do mês
     const firstDay = new Date(year, month, 1);
@@ -90,12 +101,10 @@ export function AdminCalendar({
         (ag) => ag.data === dateString
       );
 
-      // Calcular estatísticas do dia
+      // Calcular estatísticas do dia - SEM EM_ANDAMENTO
       const stats = {
         total: dayAgendamentos.length,
         agendados: dayAgendamentos.filter((a) => a.status === "agendado")
-          .length,
-        em_andamento: dayAgendamentos.filter((a) => a.status === "em_andamento")
           .length,
         finalizados: dayAgendamentos.filter((a) => a.status === "finalizado")
           .length,
@@ -103,7 +112,10 @@ export function AdminCalendar({
           .length,
         receita: dayAgendamentos
           .filter((a) => a.status === "finalizado")
-          .reduce((sum, a) => sum + (a.valor || 0), 0),
+          .reduce((sum, a) => {
+            const valor = Number(a.valor) || 0;
+            return sum + valor;
+          }, 0),
       };
 
       days.push({
@@ -117,20 +129,19 @@ export function AdminCalendar({
     }
 
     return days;
-  }, [currentDate, agendamentos]);
+  }, [safeCurrentDate, agendamentos]);
 
-  // Estatísticas do mês
+  // Estatísticas do mês - SEM EM_ANDAMENTO
   const monthStats = useMemo(() => {
     const monthAgendamentos = agendamentos.filter(
       (ag) =>
-        ag.data && ag.data.startsWith(currentDate.toISOString().substring(0, 7))
+        ag.data &&
+        ag.data.startsWith(safeCurrentDate.toISOString().substring(0, 7))
     );
 
     return {
       total: monthAgendamentos.length,
       agendados: monthAgendamentos.filter((a) => a.status === "agendado")
-        .length,
-      em_andamento: monthAgendamentos.filter((a) => a.status === "em_andamento")
         .length,
       finalizados: monthAgendamentos.filter((a) => a.status === "finalizado")
         .length,
@@ -138,9 +149,12 @@ export function AdminCalendar({
         .length,
       receita: monthAgendamentos
         .filter((a) => a.status === "finalizado")
-        .reduce((sum, a) => sum + (a.valor || 0), 0),
+        .reduce((sum, a) => {
+          const valor = Number(a.valor) || 0;
+          return sum + valor;
+        }, 0),
     };
-  }, [currentDate, agendamentos]);
+  }, [safeCurrentDate, agendamentos]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -153,8 +167,6 @@ export function AdminCalendar({
     switch (status) {
       case "agendado":
         return "bg-blue-500";
-      case "em_andamento":
-        return "bg-yellow-500";
       case "finalizado":
         return "bg-green-500";
       case "cancelado":
@@ -189,7 +201,8 @@ export function AdminCalendar({
           <div className="flex items-center space-x-3">
             <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             <h3 className="text-lg sm:text-xl font-bold">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+              {monthNames[safeCurrentDate.getMonth()]}{" "}
+              {safeCurrentDate.getFullYear()}
             </h3>
           </div>
 
@@ -218,7 +231,7 @@ export function AdminCalendar({
           </div>
         </div>
 
-        {/* Estatísticas do Mês */}
+        {/* Estatísticas do Mês - ATUALIZADO PARA 3 STATUS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mt-4">
           <div className="bg-white backdrop-blur-sm rounded-xl p-2 sm:p-3 text-center">
             <div className="text-lg sm:text-2xl font-bold">
@@ -228,20 +241,20 @@ export function AdminCalendar({
           </div>
 
           <div className="bg-white backdrop-blur-sm rounded-xl p-2 sm:p-3 text-center">
+            <div className="text-lg sm:text-2xl font-bold text-blue-400">
+              {monthStats.agendados}
+            </div>
+            <div className="text-xs sm:text-sm opacity-90">Agendados</div>
+          </div>
+
+          <div className="bg-white backdrop-blur-sm rounded-xl p-2 sm:p-3 text-center">
             <div className="text-lg sm:text-2xl font-bold text-green-400">
               {monthStats.finalizados}
             </div>
-            <div className="text-xs sm:text-sm opacity-90">Concluídos</div>
+            <div className="text-xs sm:text-sm opacity-90">Finalizados</div>
           </div>
 
-          <div className="bg-white backdrop-blur-sm rounded-xl p-2 sm:p-3 text-center col-span-2 md:col-span-1">
-            <div className="text-lg sm:text-2xl font-bold text-yellow-400">
-              {monthStats.em_andamento}
-            </div>
-            <div className="text-xs sm:text-sm opacity-90">Em Andamento</div>
-          </div>
-
-          <div className="bg-white backdrop-blur-sm rounded-xl p-2 sm:p-3 text-center col-span-2 md:col-span-1">
+          <div className="bg-white backdrop-blur-sm rounded-xl p-2 sm:p-3 text-center">
             <div className="text-base sm:text-lg font-bold text-green-400">
               {formatCurrency(monthStats.receita)}
             </div>
@@ -269,7 +282,7 @@ export function AdminCalendar({
           {calendarData.map((dayData, index) => (
             <div
               key={index}
-              onClick={() => onDateClick?.(dayData.date)}
+              onClick={() => onDayClick?.(dayData.date, dayData.agendamentos)}
               onMouseEnter={() => setHoveredDate(dayData.date)}
               onMouseLeave={() => setHoveredDate(null)}
               className={`
@@ -329,16 +342,13 @@ export function AdminCalendar({
                   )}
                 </div>
 
-                {/* Indicadores de status */}
+                {/* Indicadores de status - ATUALIZADO PARA 3 STATUS */}
                 {dayData.stats.total > 0 && (
                   <div className="flex-1 flex flex-col justify-end">
                     {/* Barras de progresso por status */}
                     <div className="grid grid-cols-2 gap-0.5 sm:gap-1 mb-1">
                       {dayData.stats.agendados > 0 && (
                         <div className="h-1 sm:h-1.5 bg-blue-400 rounded-full opacity-80"></div>
-                      )}
-                      {dayData.stats.em_andamento > 0 && (
-                        <div className="h-1 sm:h-1.5 bg-yellow-400 rounded-full opacity-80"></div>
                       )}
                       {dayData.stats.finalizados > 0 && (
                         <div className="h-1 sm:h-1.5 bg-green-400 rounded-full opacity-80"></div>
@@ -400,16 +410,12 @@ export function AdminCalendar({
         </div>
       </div>
 
-      {/* Legenda */}
+      {/* Legenda - ATUALIZADA PARA 3 STATUS */}
       <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-100">
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs sm:text-sm">
           <div className="flex items-center space-x-1 sm:space-x-2">
             <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-400 rounded shadow-sm"></div>
             <span className="text-gray-600 font-medium">Agendado</span>
-          </div>
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-400 rounded shadow-sm"></div>
-            <span className="text-gray-600 font-medium">Em Andamento</span>
           </div>
           <div className="flex items-center space-x-1 sm:space-x-2">
             <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-400 rounded shadow-sm"></div>

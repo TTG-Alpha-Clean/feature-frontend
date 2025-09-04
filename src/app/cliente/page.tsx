@@ -1,4 +1,4 @@
-// app/cliente/page.tsx
+// app/cliente/page.tsx - VERSÃO CORRIGIDA
 "use client";
 
 import { useEffect, useState } from "react";
@@ -51,7 +51,7 @@ export default function ClienteDashboardPage() {
 
         const userData = await res.json();
         if (!cancel) {
-          setUser(userData);
+          setUser(userData.user || userData); // ✅ Flexibilidade na estrutura da resposta
           setChecking(false);
         }
       } catch {
@@ -95,9 +95,26 @@ export default function ClienteDashboardPage() {
 
         const data = await res.json();
 
+        // ✅ Interface para os dados da API
+        interface AgendamentoApiItem {
+          id: string;
+          data: string;
+          horario: string;
+          servico_nome: string;
+          servico_valor?: number | string | null;
+          modelo_veiculo: string;
+          cor?: string;
+          placa: string;
+          observacoes?: string;
+          status: "agendado" | "finalizado" | "cancelado"; // ✅ Apenas 3 status
+          valor?: number | string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+
         // Converte os dados da API para o formato do ServiceList
         const agendamentosFormatados: ServiceItem[] =
-          data.data?.map((item: any) => {
+          data.data?.map((item: AgendamentoApiItem) => {
             // ✅ Log para debug
             console.log("Item da API:", item);
 
@@ -111,18 +128,19 @@ export default function ClienteDashboardPage() {
             return {
               id: item.id,
               datetime: `${dataLimpa}T${item.horario || "09:00"}`, // ✅ Usa data limpa
-              servico: item.servico,
+              servico: item.servico_nome || "Serviço",
               veiculo: item.modelo_veiculo,
               modelo_veiculo: item.modelo_veiculo,
-              cor: item.cor,
+              cor: item.cor || "",
               placa: item.placa,
               data: dataLimpa, // ✅ Data limpa separada
               horario: item.horario, // ✅ Horário separado
-              observacoes: item.observacoes,
-              status: item.status,
+              observacoes: item.observacoes || "",
+              status: item.status, // ✅ Status já no formato correto
             };
           }) || [];
 
+        console.log("📊 Agendamentos formatados:", agendamentosFormatados);
         setAgendamentos(agendamentosFormatados);
       } catch (error) {
         console.error("Erro ao buscar agendamentos:", error);
@@ -320,6 +338,55 @@ export default function ClienteDashboardPage() {
             onClick={handleLocation}
           />
         </div>
+
+        {/* ✅ Estatísticas do Cliente - APENAS 3 STATUS */}
+        {agendamentos.length > 0 && (
+          <div className="mt-12 mb-8">
+            <h2 className="text-xl font-semibold mb-4">
+              Resumo dos Seus Agendamentos
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {agendamentos.filter((a) => a.status === "agendado").length}
+                  </p>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    Agendados
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    {
+                      agendamentos.filter((a) => a.status === "finalizado")
+                        .length
+                    }
+                  </p>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    Finalizados
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">
+                    {
+                      agendamentos.filter((a) => a.status === "cancelado")
+                        .length
+                    }
+                  </p>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    Cancelados
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Histórico de agendamentos */}
         <div className="mt-12">

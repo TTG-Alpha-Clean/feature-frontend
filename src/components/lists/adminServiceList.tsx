@@ -1,4 +1,4 @@
-// src/components/lists/adminServiceList.tsx - COM ESTILO DO CALENDÁRIO
+// src/components/lists/adminServiceList.tsx - VERSÃO COMPLETA CORRIGIDA
 
 "use client";
 
@@ -7,10 +7,9 @@ import {
   StatusBadge,
   type StatusBadgeProps,
 } from "@/components/ui/statusBadge";
-import DeleteButton from "@/components/ui/deleteButton";
 import { formatDatePtBr, formatHour } from "@/lib/date";
 import { toast } from "react-hot-toast";
-import { User, Car, Phone } from "lucide-react";
+import { User, Car, Phone, Check, X } from "lucide-react";
 
 export type AdminServiceItem = {
   id: string;
@@ -20,12 +19,11 @@ export type AdminServiceItem = {
   modelo_veiculo?: string;
   cor?: string;
   placa?: string;
-  data?: string;
-  horario?: string;
+  data: string;
+  horario: string;
   observacoes?: string;
   status: StatusBadgeProps["status"];
-  valor?: number; // Valor do serviço
-  // Dados do cliente
+  valor?: number | string | null;
   cliente: {
     id: string;
     nome: string;
@@ -42,6 +40,15 @@ interface AdminServiceListProps {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Função auxiliar para formatar valores monetários de forma segura
+function formatCurrency(value: number | string | null | undefined): string {
+  if (!value && value !== 0) return "";
+  const numValue = Number(value);
+  if (isNaN(numValue)) return "";
+  if (numValue <= 0) return "";
+  return `R$ ${numValue.toFixed(2)}`;
+}
 
 // Função auxiliar para formatar data de forma segura
 function formatDateSafe(dateInput: string | Date): string {
@@ -108,10 +115,61 @@ function formatHourSafe(dateInput: string | Date): string {
 }
 
 export function AdminServiceList({ items, onRefresh }: AdminServiceListProps) {
+  const [showCancelDialog, setShowCancelDialog] = useState<string | null>(null);
+  const [showFinishDialog, setShowFinishDialog] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
 
-  const handleDeleteConfirm = async (id: string) => {
-    const tid = toast.loading("Cancelando agendamento...");
+  // Função para alterar status (cancelar/finalizar)
+  const handleStatusChange = async (
+    id: string,
+    newStatus: StatusBadgeProps["status"]
+  ) => {
+    setLoading(id);
+    const tid = toast.loading(
+      newStatus === "cancelado"
+        ? "Cancelando agendamento..."
+        : "Finalizando agendamento..."
+    );
+
+    try {
+      const res = await fetch(`${API_URL}/api/agendamentos/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        throw new Error(error?.error || "Erro ao atualizar status");
+      }
+
+      toast.success(
+        newStatus === "cancelado"
+          ? "Agendamento cancelado com sucesso!"
+          : "Agendamento finalizado com sucesso!",
+        { id: tid }
+      );
+
+      onRefresh?.();
+    } catch (err: unknown) {
+      const errorMessage =
+        err && typeof err === "object" && "message" in err
+          ? (err as { message: string }).message
+          : "Erro ao atualizar status";
+      toast.error(errorMessage, { id: tid });
+    } finally {
+      setLoading(null);
+      setShowCancelDialog(null);
+      setShowFinishDialog(null);
+    }
+  };
+
+  // Função para excluir agendamento
+  const handleDeleteAgendamento = async (id: string) => {
+    setLoading(id);
+    const tid = toast.loading("Excluindo agendamento...");
 
     try {
       const res = await fetch(`${API_URL}/api/agendamentos/${id}`, {
@@ -121,31 +179,21 @@ export function AdminServiceList({ items, onRefresh }: AdminServiceListProps) {
 
       if (!res.ok) {
         const error = await res.json().catch(() => null);
-        throw new Error(error?.error || "Erro ao cancelar agendamento");
+        throw new Error(error?.error || "Erro ao excluir agendamento");
       }
 
-      toast.success("Agendamento cancelado com sucesso!", { id: tid });
+      toast.success("Agendamento excluído com sucesso!", { id: tid });
       onRefresh?.();
     } catch (err: unknown) {
       const errorMessage =
         err && typeof err === "object" && "message" in err
-          ? (err as { message?: string }).message
-          : "Erro ao cancelar agendamento.";
-      toast.error(errorMessage || "Erro ao cancelar agendamento.", { id: tid });
+          ? (err as { message: string }).message
+          : "Erro ao excluir agendamento";
+      toast.error(errorMessage, { id: tid });
     } finally {
+      setLoading(null);
       setShowDeleteDialog(null);
     }
-  };
-
-  const handleDeleteClick = (id: string) => {
-    setShowDeleteDialog(id);
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
   };
 
   if (!items?.length) {
@@ -159,150 +207,129 @@ export function AdminServiceList({ items, onRefresh }: AdminServiceListProps) {
   return (
     <>
       <div className="space-y-4">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden
-                       hover:shadow-xl transition-all duration-200 transform hover:scale-[1.01]"
-          >
-            {/* Header com gradiente cinza */}
-            <div className="bg-gray-400 px-4 sm:px-6 py-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="text-lg font-bold text-white">
-                    {item.servico}
-                  </h3>
-                  <div className=" backdrop-blur-sm rounded-lg px-2 py-1">
-                    <StatusBadge status={item.status} />
-                  </div>
-                </div>
+        {items.map((item) => {
+          const valorFormatado = formatCurrency(item.valor);
 
-                {item.valor && (
-                  <div className="bg-white backdrop-blur-sm rounded-lg px-3 py-1">
-                    <span className="text-green-400 font-semibold">
-                      {formatCurrency(item.valor)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Conteúdo principal */}
-            <div className="p-4 sm:p-6">
-              <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
+          return (
+            <div
+              key={item.id}
+              className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 {/* Informações principais */}
                 <div className="flex-1 space-y-4">
-                  {/* Cliente */}
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <User size={16} className="text-blue-600" />
+                  {/* Header com data, horário e status */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="text-lg font-bold text-gray-900">
+                      {formatDateSafe(item.datetime)} às{" "}
+                      {formatHourSafe(item.datetime)}
+                    </div>
+                    <StatusBadge status={item.status} />
+                    {valorFormatado && (
+                      <div className="text-lg font-bold text-green-600">
+                        {valorFormatado}
                       </div>
-                      <span className="font-semibold text-gray-700">
-                        Cliente
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p className="font-medium">{item.cliente.nome}</p>
-                      {item.cliente.email && (
-                        <p className="flex items-center gap-1">
-                          📧 {item.cliente.email}
-                        </p>
-                      )}
-                      {item.cliente.telefone && (
-                        <p className="flex items-center gap-1">
-                          <Phone size={14} />
-                          {item.cliente.telefone}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
 
-                  {/* Data e Veículo */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Data/Hora */}
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                          📅
-                        </div>
-                        <span className="font-semibold text-gray-700">
-                          Agendamento
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-sm text-gray-600">
-                        <p className="font-medium">
-                          {item.data
-                            ? formatDateSafe(item.data)
-                            : formatDateSafe(item.datetime)}
-                        </p>
-                        <p>{item.horario || formatHourSafe(item.datetime)}</p>
-                      </div>
-                    </div>
-
-                    {/* Veículo */}
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                          <Car size={16} className="text-purple-600" />
-                        </div>
-                        <span className="font-semibold text-gray-700">
-                          Veículo
-                        </span>
+                  {/* Informações do serviço e veículo */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Car className="h-4 w-4 text-gray-500" />
+                        <span className="font-medium">{item.servico}</span>
                       </div>
                       <div className="text-sm text-gray-600">
-                        <p className="font-medium">
-                          {item.modelo_veiculo || item.veiculo}
-                        </p>
-                        {item.placa && <p>Placa: {item.placa}</p>}
-                        {item.cor && <p>Cor: {item.cor}</p>}
+                        {item.modelo_veiculo} {item.cor && `- ${item.cor}`}
                       </div>
+                      {item.placa && (
+                        <div className="text-sm text-gray-600 font-mono">
+                          Placa: {item.placa}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-500" />
+                        <span className="font-medium">{item.cliente.nome}</span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {item.cliente.email}
+                      </div>
+                      {item.cliente.telefone && (
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Phone className="h-3 w-3" />
+                          {item.cliente.telefone}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Observações */}
                   {item.observacoes && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                          📝
-                        </div>
-                        <span className="font-semibold text-gray-700">
-                          Observações
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        {item.observacoes}
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <strong>Observações:</strong> {item.observacoes}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Ações */}
-                <div className="flex flex-row lg:flex-col gap-2 lg:items-end">
-                  {(item.status === "agendado" ||
-                    item.status === "em_andamento") && (
-                    <DeleteButton onClick={() => handleDeleteClick(item.id)} />
+                {/* Botões de controle baseados no status */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Botões para agendamentos com status "agendado" */}
+                  {item.status === "agendado" && (
+                    <>
+                      <button
+                        onClick={() => setShowFinishDialog(item.id)}
+                        disabled={loading === item.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <Check className="h-4 w-4" />
+                        Finalizar
+                      </button>
+
+                      <button
+                        onClick={() => setShowCancelDialog(item.id)}
+                        disabled={loading === item.id}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+
+                  {/* Botão de exclusão para agendamentos cancelados ou finalizados */}
+                  {(item.status === "cancelado" ||
+                    item.status === "finalizado") && (
+                    <button
+                      onClick={() => setShowDeleteDialog(item.id)}
+                      disabled={loading === item.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                      Excluir
+                    </button>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Dialog de confirmação de exclusão com estilo melhorado */}
-      {showDeleteDialog && (
+      {/* Dialog de confirmação para cancelar */}
+      {showCancelDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full mx-4 overflow-hidden">
-            {/* Header do modal */}
             <div className="bg-red-500 px-6 py-4">
               <h3 className="text-lg font-bold text-white">
                 Cancelar Agendamento
               </h3>
             </div>
 
-            {/* Conteúdo */}
             <div className="p-6">
               <p className="text-gray-600 mb-6">
                 Tem certeza que deseja cancelar este agendamento? Esta ação não
@@ -311,18 +338,109 @@ export function AdminServiceList({ items, onRefresh }: AdminServiceListProps) {
 
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => setShowDeleteDialog(null)}
+                  onClick={() => setShowCancelDialog(null)}
+                  disabled={loading !== null}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 
-                           rounded-lg hover:bg-gray-50 transition-colors"
+                           rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Não, manter
                 </button>
                 <button
-                  onClick={() => handleDeleteConfirm(showDeleteDialog)}
+                  onClick={() =>
+                    handleStatusChange(showCancelDialog, "cancelado")
+                  }
+                  disabled={loading !== null}
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
-                           transition-colors font-medium"
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                 >
-                  Sim, cancelar
+                  {loading === showCancelDialog
+                    ? "Cancelando..."
+                    : "Sim, cancelar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog de confirmação para finalizar */}
+      {showFinishDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-green-500 px-6 py-4">
+              <h3 className="text-lg font-bold text-white">
+                Finalizar Agendamento
+              </h3>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-600 mb-6">
+                Tem certeza que deseja marcar este agendamento como finalizado?
+                Isso indica que o serviço foi concluído com sucesso.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowFinishDialog(null)}
+                  disabled={loading !== null}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 
+                           rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() =>
+                    handleStatusChange(showFinishDialog, "finalizado")
+                  }
+                  disabled={loading !== null}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {loading === showFinishDialog
+                    ? "Finalizando..."
+                    : "Sim, finalizar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog de confirmação para excluir */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full mx-4 overflow-hidden">
+            <div className="bg-gray-600 px-6 py-4">
+              <h3 className="text-lg font-bold text-white">
+                Excluir Agendamento
+              </h3>
+            </div>
+
+            <div className="p-6">
+              <p className="text-gray-600 mb-6">
+                Tem certeza que deseja excluir permanentemente este agendamento?
+                Esta ação não pode ser desfeita e removerá todos os dados do
+                sistema.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteDialog(null)}
+                  disabled={loading !== null}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 
+                           rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleDeleteAgendamento(showDeleteDialog)}
+                  disabled={loading !== null}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 
+                           disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {loading === showDeleteDialog
+                    ? "Excluindo..."
+                    : "Sim, excluir"}
                 </button>
               </div>
             </div>

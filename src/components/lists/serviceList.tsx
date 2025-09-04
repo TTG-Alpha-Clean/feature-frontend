@@ -1,4 +1,5 @@
-// src/components/lists/serviceList.tsx - COM ESTILO DO CALENDÁRIO
+// src/components/lists/serviceList.tsx - VERSÃO CORRIGIDA COM FUNÇÃO DE CANCELAMENTO
+
 "use client";
 
 import { useState } from "react";
@@ -11,23 +12,22 @@ import EditButton from "@/components/ui/editButton";
 import { formatDatePtBr, formatHour } from "@/lib/date";
 import { EditAgendamentoModal } from "@/components/modals/editAppointmentModal";
 import { toast } from "react-hot-toast";
-import { User, Car, Phone } from "lucide-react";
+import { Car, X } from "lucide-react";
 
 export type ServiceItem = {
   id: string;
-  datetime: string | Date; // ISO
+  datetime: string | Date;
   servico: string;
   veiculo: string;
   modelo_veiculo?: string;
   cor?: string;
   placa?: string;
-  data?: string; // Adicionado para quando vem separado da API
+  data?: string;
   horario?: string;
   observacoes?: string;
   status: StatusBadgeProps["status"];
 };
 
-// Tipo específico para o modal de edição
 type AgendamentoEdit = {
   id: string;
   modelo_veiculo: string;
@@ -42,12 +42,11 @@ type AgendamentoEdit = {
 
 interface ServiceListProps {
   items: ServiceItem[];
-  onRefresh?: () => void; // Função para recarregar a lista
+  onRefresh?: () => void;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-// Função auxiliar para formatar data de forma segura
 function formatDateSafe(dateInput: string | Date): string {
   try {
     if (!dateInput) return "Data inválida";
@@ -55,22 +54,16 @@ function formatDateSafe(dateInput: string | Date): string {
     let date: Date;
 
     if (typeof dateInput === "string") {
-      // Se é string, tenta diferentes formatos
       if (dateInput.includes("T")) {
-        // ISO format: "2025-08-20T14:30:00" ou "2025-08-20T03:00:00.000ZT14:40:00"
         let cleanDateString = dateInput;
-
-        // Corrige se tem duplo T (erro de concatenação)
         if (dateInput.includes("ZT")) {
           cleanDateString = dateInput.split("ZT")[0] + "Z";
         } else if (dateInput.includes(".000ZT")) {
           cleanDateString = dateInput.split(".000ZT")[0] + ".000Z";
         }
-
         date = new Date(cleanDateString);
       } else if (dateInput.includes("-")) {
-        // Date format: "2025-08-20"
-        date = new Date(dateInput + "T12:00:00"); // Adiciona horário para evitar timezone issues
+        date = new Date(dateInput + "T12:00:00");
       } else {
         throw new Error("Formato não reconhecido");
       }
@@ -78,7 +71,6 @@ function formatDateSafe(dateInput: string | Date): string {
       date = dateInput;
     }
 
-    // Verifica se a data é válida
     if (isNaN(date.getTime())) {
       throw new Error("Data inválida");
     }
@@ -90,7 +82,6 @@ function formatDateSafe(dateInput: string | Date): string {
   }
 }
 
-// Função auxiliar para formatar hora de forma segura
 function formatHourSafe(dateInput: string | Date): string {
   try {
     if (!dateInput) return "Hora inválida";
@@ -101,7 +92,6 @@ function formatHourSafe(dateInput: string | Date): string {
       if (dateInput.includes("T")) {
         date = new Date(dateInput);
       } else {
-        // Se é só data, retorna hora padrão
         return "09:00";
       }
     } else {
@@ -120,37 +110,77 @@ function formatHourSafe(dateInput: string | Date): string {
 }
 
 export function ServiceList({ items, onRefresh }: ServiceListProps) {
-  const [editando, setEditando] = useState<AgendamentoEdit | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
+  const [editando, setEditando] = useState<AgendamentoEdit | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleDeleteConfirm = async (id: string) => {
+  // Função específica para cancelar agendamentos "agendado"
+  const handleCancelAgendamento = async (id: string) => {
+    setLoading(true);
     const tid = toast.loading("Cancelando agendamento...");
 
+    console.log("CANCELANDO AGENDAMENTO ID:", id);
+
     try {
-      // Rota correta: DELETE /:id (não /cancel)
-      const res = await fetch(`${API_URL}/api/agendamentos/${id}`, {
+      const res = await fetch(
+        `http://localhost:3001/api/agendamentos/${id}/cancel`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      console.log("Resposta do servidor:", res.status, res.statusText);
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        console.log("Erro do servidor:", error);
+        throw new Error(error?.error || "Erro ao cancelar agendamento");
+      }
+
+      toast.success("Agendamento cancelado com sucesso!", { id: tid });
+      onRefresh?.();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Erro no cancelamento:", err);
+        toast.error(err.message || "Erro ao cancelar agendamento", { id: tid });
+      } else {
+        console.error("Erro no cancelamento:", err);
+        toast.error("Erro ao cancelar agendamento", { id: tid });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para excluir agendamentos "cancelado"
+  const handleDeleteConfirm = async (id: string) => {
+    setLoading(true);
+    const tid = toast.loading("Excluindo agendamento...");
+
+    try {
+      const res = await fetch(`http://localhost:3001/api/agendamentos/${id}`, {
         method: "DELETE",
         credentials: "include",
       });
 
       if (!res.ok) {
         const error = await res.json().catch(() => null);
-        throw new Error(error?.error || "Erro ao cancelar agendamento");
+        throw new Error(error?.error || "Erro ao excluir agendamento");
       }
 
-      toast.success("Agendamento cancelado com sucesso!", { id: tid });
-
-      // Chama o refresh para recarregar a lista
+      toast.success("Agendamento excluído com sucesso!", { id: tid });
       onRefresh?.();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        toast.error(err.message || "Erro ao cancelar agendamento.", {
+        toast.error(err.message || "Erro ao excluir agendamento.", {
           id: tid,
         });
       } else {
-        toast.error("Erro ao cancelar agendamento.", { id: tid });
+        toast.error("Erro ao excluir agendamento.", { id: tid });
       }
     } finally {
+      setLoading(false);
       setShowDeleteDialog(null);
     }
   };
@@ -160,28 +190,23 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
   };
 
   const handleEdit = (item: ServiceItem) => {
-    // Conversão mais robusta para o formato esperado pelo modal
     let dataFormatada = "";
     let horarioFormatado = "";
 
     try {
-      // Se item tem data e horario separados, usa eles
       if (item.data && item.horario) {
         dataFormatada = item.data;
         horarioFormatado = item.horario;
       } else if (typeof item.datetime === "string") {
         if (item.datetime.includes("T")) {
-          // Formato ISO: "2025-08-20T10:15:00Z"
           const [datePart, timePart] = item.datetime.split("T");
           dataFormatada = datePart;
-          horarioFormatado = timePart.slice(0, 5); // Pega apenas HH:MM
+          horarioFormatado = timePart.slice(0, 5);
         } else {
-          // Se não tem T, assume que é só data
           dataFormatada = item.datetime;
           horarioFormatado = item.horario || "09:00";
         }
       } else if (item.datetime instanceof Date) {
-        // Se é objeto Date
         dataFormatada = item.datetime.toISOString().split("T")[0];
         horarioFormatado = item.datetime.toTimeString().slice(0, 5);
       } else {
@@ -189,12 +214,10 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
       }
     } catch (error) {
       console.error("Erro ao converter data/hora:", error, item);
-      // Fallback
       dataFormatada = new Date().toISOString().split("T")[0];
       horarioFormatado = "09:00";
     }
 
-    // Agora retorna o tipo correto AgendamentoEdit
     const agendamento: AgendamentoEdit = {
       id: item.id,
       modelo_veiculo: item.modelo_veiculo || item.veiculo || "",
@@ -207,7 +230,6 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
       status: item.status,
     };
 
-    console.log("Dados para edição:", agendamento); // Para debug
     setEditando(agendamento);
   };
 
@@ -237,27 +259,41 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
                   <h3 className="text-lg font-bold text-white">
                     {item.servico}
                   </h3>
-                  <div className=" backdrop-blur-sm rounded-lg px-2 py-1">
+                  <div className="backdrop-blur-sm rounded-lg px-2 py-1">
                     <StatusBadge status={item.status} />
                   </div>
                 </div>
 
-                {/* Ações no header */}
+                {/* Ações baseadas no status */}
                 <div className="flex items-center gap-2">
+                  {/* Editar - apenas para agendados */}
                   {item.status === "agendado" && (
-                    <div>
-                      <EditButton onClick={() => handleEdit(item)} />
-                    </div>
+                    <EditButton onClick={() => handleEdit(item)} />
                   )}
 
-                  {item.status !== "cancelado" &&
-                    item.status !== "finalizado" && (
-                      <div>
-                        <DeleteButton
-                          onClick={() => handleDeleteClick(item.id)}
-                        />
-                      </div>
-                    )}
+                  {/* Cancelar - apenas para agendados */}
+                  {item.status === "agendado" && (
+                    <button
+                      onClick={() => handleCancelAgendamento(item.id)}
+                      disabled={loading}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      <X className="h-3 w-3" />
+                      Cancelar
+                    </button>
+                  )}
+
+                  {/* Excluir - apenas para cancelados */}
+                  {item.status === "cancelado" && (
+                    <button
+                      onClick={() => handleDeleteClick(item.id)}
+                      disabled={loading}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      <X className="h-3 w-3" />
+                      Excluir
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -322,22 +358,21 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
         ))}
       </div>
 
-      {/* Dialog de confirmação de exclusão com estilo melhorado */}
+      {/* Dialog de confirmação para exclusão (apenas cancelados) */}
       {showDeleteDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full mx-4 overflow-hidden">
-            {/* Header do modal */}
-            <div className="bg-red-500 px-6 py-4">
+            <div className="bg-gray-600 px-6 py-4">
               <h3 className="text-lg font-bold text-white">
-                Cancelar Agendamento
+                Excluir Agendamento
               </h3>
             </div>
 
-            {/* Conteúdo */}
             <div className="p-6">
               <p className="text-gray-600 mb-6">
-                Tem certeza que deseja cancelar este agendamento? Esta ação não
-                pode ser desfeita.
+                Tem certeza que deseja excluir permanentemente este agendamento?
+                Esta ação não pode ser desfeita e removerá todos os dados do
+                sistema.
               </p>
 
               <div className="flex gap-3 justify-end">
@@ -350,10 +385,10 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
                 </button>
                 <button
                   onClick={() => handleDeleteConfirm(showDeleteDialog)}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 
                            transition-colors font-medium"
                 >
-                  Sim, Cancelar
+                  Sim, excluir
                 </button>
               </div>
             </div>
@@ -368,7 +403,7 @@ export function ServiceList({ items, onRefresh }: ServiceListProps) {
           onClose={() => setEditando(null)}
           onUpdated={() => {
             setEditando(null);
-            onRefresh?.(); // Recarrega a lista após edição
+            onRefresh?.();
           }}
         />
       )}

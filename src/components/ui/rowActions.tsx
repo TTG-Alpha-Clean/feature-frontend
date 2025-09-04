@@ -1,3 +1,5 @@
+// src/components/ui/rowActions.tsx - VERSÃO SIMPLIFICADA SEM EM_ANDAMENTO
+
 "use client";
 
 import { useState } from "react";
@@ -34,7 +36,7 @@ export function RowActions({
   const [showConfirm, setShowConfirm] = useState(false);
   const [canceling, setCanceling] = useState(false);
 
-  // Só mostra botões para agendamentos com status "agendado"
+  // ✅ LÓGICA SIMPLIFICADA - SÓ PARA AGENDAMENTOS "AGENDADO"
   const canEdit = status === "agendado";
   const canCancel = status === "agendado";
 
@@ -78,15 +80,17 @@ export function RowActions({
       if (onCanceled) {
         onCanceled();
       }
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao cancelar agendamento", { id: tid });
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao cancelar agendamento";
+      toast.error(errorMessage, { id: tid });
     } finally {
       setCanceling(false);
       setShowConfirm(false);
     }
   };
 
-  // Se não pode editar nem cancelar, não mostra nada
+  // ✅ Se não é agendado, não mostra nenhum botão
   if (!canEdit && !canCancel) {
     return null;
   }

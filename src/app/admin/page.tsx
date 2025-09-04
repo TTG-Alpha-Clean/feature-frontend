@@ -8,7 +8,6 @@ import {
   Calendar,
   TrendingUp,
   DollarSign,
-  Clock,
   Settings,
   Grid3X3,
   CalendarDays,
@@ -51,6 +50,10 @@ export default function AdminDashboardPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showServicos, setShowServicos] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+
+  // ✅ Estado para controlar data atual do calendário
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Função para forçar refresh da lista
   const handleRefresh = () => {
@@ -140,13 +143,13 @@ export default function AdminDashboardPage() {
             data: string;
             horario: string;
             servico_nome: string;
-            servico_valor: number;
+            servico_valor: number | string | null;
             modelo_veiculo: string;
             cor: string;
             placa: string;
             observacoes: string;
             status: string;
-            valor?: number;
+            valor?: number | string | null;
             usuario_id: string;
             usuario_nome?: string;
             usuario_email?: string;
@@ -163,8 +166,8 @@ export default function AdminDashboardPage() {
                 dataLimpa = item.data.split("T")[0];
               }
 
-              // Usar servico_valor que vem do JOIN no backend
-              const valor = item.servico_valor || 0;
+              // Usar servico_valor que vem do JOIN no backend, com fallback para valor
+              const valor = item.servico_valor || item.valor || 0;
 
               console.log(
                 `💰 Agendamento ${item.id}: valor=${valor}, status=${item.status}, data=${dataLimpa}`
@@ -176,12 +179,12 @@ export default function AdminDashboardPage() {
                 servico: item.servico_nome || "Serviço não informado",
                 veiculo: item.modelo_veiculo,
                 modelo_veiculo: item.modelo_veiculo,
-                cor: item.cor,
+                cor: item.cor || "",
                 placa: item.placa,
-                data: dataLimpa,
-                horario: item.horario,
-                observacoes: item.observacoes,
-                status: item.status,
+                data: dataLimpa || "", // ✅ Garantir que não seja undefined
+                horario: item.horario || "09:00", // ✅ Garantir que não seja undefined
+                observacoes: item.observacoes || "",
+                status: item.status as AdminServiceItem["status"], // ✅ Cast para tipo correto
                 valor: valor,
                 cliente: {
                   id: item.usuario_id,
@@ -224,19 +227,30 @@ export default function AdminDashboardPage() {
       document.cookie = "has_session=; Max-Age=0; Path=/; SameSite=Lax";
       document.cookie = "role=; Max-Age=0; Path=/; SameSite=Lax";
 
-      router.push("/home");
+      router.push("/login");
     } catch (error) {
       console.error("Erro no logout:", error);
       toast.error("Erro ao fazer logout", { id: toastId });
     }
   };
 
-  // Função para filtrar agendamentos por data (quando clicado no calendário)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
-  const handleDateClick = (date: string) => {
+  // ✅ Função para clique no calendário
+  const handleDateClick = (
+    date: string,
+    dayAgendamentos: AdminServiceItem[]
+  ) => {
     setSelectedDate(selectedDate === date ? null : date);
     setViewMode("list"); // Volta para a lista quando clica numa data
+  };
+
+  // ✅ Função segura para mudança de data do calendário
+  const handleDateChange = (newDate: Date) => {
+    if (newDate && !isNaN(newDate.getTime())) {
+      setCurrentDate(newDate);
+    } else {
+      console.error("Data inválida recebida:", newDate);
+      setCurrentDate(new Date()); // Fallback para hoje
+    }
   };
 
   // Loading inicial
@@ -257,14 +271,21 @@ export default function AdminDashboardPage() {
     return null;
   }
 
-  // Cálculos de estatísticas
+  // ✅ Cálculos de estatísticas - SEM EM_ANDAMENTO
   const stats = {
     total: agendamentos.length,
     agendados: agendamentos.filter((a) => a.status === "agendado").length,
-    em_andamento: agendamentos.filter((a) => a.status === "em_andamento")
-      .length,
     finalizados: agendamentos.filter((a) => a.status === "finalizado").length,
     cancelados: agendamentos.filter((a) => a.status === "cancelado").length,
+  };
+
+  // ✅ Função segura para formatar valores
+  const formatCurrency = (value: number | string | null | undefined) => {
+    const numValue = Number(value) || 0;
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(numValue);
   };
 
   // Cálculo de receita usando o campo valor correto
@@ -272,7 +293,7 @@ export default function AdminDashboardPage() {
   const receitaHoje = agendamentos
     .filter((a) => a.status === "finalizado" && a.data === hoje)
     .reduce((sum, a) => {
-      const valor = a.valor || 0;
+      const valor = Number(a.valor) || 0;
       console.log(`💰 Receita hoje - Agendamento ${a.id}: +${valor}`);
       return sum + valor;
     }, 0);
@@ -282,20 +303,13 @@ export default function AdminDashboardPage() {
   const receitaMes = agendamentos
     .filter((a) => a.status === "finalizado" && a.data?.startsWith(mesAtual))
     .reduce((sum, a) => {
-      const valor = a.valor || 0;
+      const valor = Number(a.valor) || 0;
       console.log(`💰 Receita mês - Agendamento ${a.id}: +${valor}`);
       return sum + valor;
     }, 0);
 
   console.log(`💵 Receita hoje: ${receitaHoje}`);
   console.log(`💵 Receita mês: ${receitaMes}`);
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
 
   // Filtrar agendamentos se uma data foi selecionada
   const agendamentosFiltrados = selectedDate
@@ -353,10 +367,10 @@ export default function AdminDashboardPage() {
           />
         ) : (
           <>
-            {/* ESTATÍSTICAS - LAYOUT 2 LINHAS: 4 + 3 CARDS */}
+            {/* ✅ ESTATÍSTICAS - SEM EM_ANDAMENTO */}
             <div className="space-y-4 mb-8">
-              {/* Primeira linha - 4 cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Primeira linha - 3 cards principais */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -368,22 +382,6 @@ export default function AdminDashboardPage() {
                       </p>
                       <p className="text-2xl font-bold text-[var(--foreground)]">
                         {stats.agendados}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-[var(--muted-foreground)]">
-                        Em Andamento
-                      </p>
-                      <p className="text-2xl font-bold text-[var(--foreground)]">
-                        {stats.em_andamento}
                       </p>
                     </div>
                   </div>
@@ -404,10 +402,7 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Segunda linha - 3 cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
@@ -423,7 +418,10 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 </div>
+              </div>
 
+              {/* Segunda linha - 2 cards de receita */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -522,7 +520,7 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* Conteúdo baseado no modo de visualização */}
+            {/* ✅ Conteúdo baseado no modo de visualização */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
@@ -535,7 +533,9 @@ export default function AdminDashboardPage() {
             ) : viewMode === "calendar" ? (
               <AdminCalendar
                 agendamentos={agendamentos}
-                onDateClick={handleDateClick}
+                currentDate={currentDate} // ✅ Passa currentDate válido
+                onDateChange={handleDateChange} // ✅ Função segura
+                onDayClick={handleDateClick} // ✅ Função de clique
               />
             ) : (
               <AdminServiceList
