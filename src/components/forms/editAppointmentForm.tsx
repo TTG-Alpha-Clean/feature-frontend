@@ -1,4 +1,4 @@
-// src/components/forms/editAgendamentoForm.tsx
+// src/components/forms/editAgendamentoForm.tsx - VERSÃO CORRIGIDA
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -27,7 +27,12 @@ interface Agendamento {
   status: string;
 }
 
-type ServicoOption = { id: string; nome: string };
+type ServicoOption = {
+  id: string;
+  nome: string;
+  valor: number;
+  ativo: boolean;
+};
 type SlotInfo = {
   horario: string;
   ocupados: number;
@@ -42,13 +47,27 @@ interface Props {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
-const PLACA_REGEX_DB = /^[A-Z]{3}-\d{4}$/; // AAA-9999 (igual ao CHECK do DB)
+// ✅ CORREÇÃO: Usar regex Mercosul em vez do formato antigo
+const PLACA_REGEX_MERCOSUL = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/; // ABC1E23
 
-function normalizePlacaDB(v: string) {
+// ✅ CORREÇÃO: Função para normalizar placa no formato Mercosul
+function normalizePlacaMercosul(v: string) {
   const raw = v.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const L = raw.slice(0, 3).replace(/[^A-Z]/g, "");
-  const N = raw.slice(3, 7).replace(/[^0-9]/g, "");
-  return N ? `${L}-${N}` : L;
+
+  if (raw.length === 0) return "";
+  if (raw.length <= 3) return raw.replace(/[^A-Z]/g, "");
+  if (raw.length === 4)
+    return raw.slice(0, 3) + raw.slice(3, 4).replace(/[^0-9]/g, "");
+  if (raw.length === 5)
+    return raw.slice(0, 3) + raw.slice(3, 4) + raw.slice(4, 5);
+
+  // ABC1E23 completo
+  return (
+    raw.slice(0, 3) +
+    raw.slice(3, 4).replace(/[^0-9]/g, "") +
+    raw.slice(4, 5) +
+    raw.slice(5, 7).replace(/[^0-9]/g, "")
+  );
 }
 
 function todayISO() {
@@ -76,7 +95,7 @@ export function EditAgendamentoForm({
   const [modelo_veiculo, setModelo] = useState(agendamento.modelo_veiculo);
   const [cor, setCor] = useState(agendamento.cor || "");
   const [placa, setPlaca] = useState(agendamento.placa);
-  const [servico, setServico] = useState(agendamento.servico);
+  const [servico_id, setServicoId] = useState(""); // ✅ Usar servico_id em vez de servico
   const [data, setData] = useState(agendamento.data);
   const [horario, setHorario] = useState(agendamento.horario);
   const [observacoes, setObservacoes] = useState(agendamento.observacoes || "");
@@ -86,15 +105,43 @@ export function EditAgendamentoForm({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const servicos: ServicoOption[] = useMemo(
-    () => [
-      { id: "lavagem_express", nome: "Lavagem Express" },
-      { id: "lavagem_completa", nome: "Lavagem Completa" },
-      { id: "higienizacao_interna", nome: "Higienização Interna" },
-      { id: "polimento_cristal", nome: "Polimento Cristalizado" },
-    ],
-    []
-  );
+  // ✅ CORREÇÃO: Carregar serviços da API em vez de usar lista estática
+  const [servicos, setServicos] = useState<ServicoOption[]>([]);
+  const [loadingServicos, setLoadingServicos] = useState(false);
+
+  // ✅ CORREÇÃO: Carregar serviços da API
+  useEffect(() => {
+    const loadServicos = async () => {
+      setLoadingServicos(true);
+      try {
+        const res = await fetch(`${API_URL}/api/servicos`, {
+          credentials: "include",
+        });
+
+        if (!res.ok) throw new Error("Erro ao carregar serviços");
+
+        const data = await res.json();
+        const servicosDisponiveis = data.data || [];
+        setServicos(servicosDisponiveis);
+
+        // ✅ Encontrar o servico_id baseado no nome do agendamento
+        const servicoAtual = servicosDisponiveis.find(
+          (s: ServicoOption) => s.nome === agendamento.servico
+        );
+        if (servicoAtual) {
+          setServicoId(servicoAtual.id);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar serviços:", error);
+        toast.error("Erro ao carregar serviços disponíveis");
+        setServicos([]);
+      } finally {
+        setLoadingServicos(false);
+      }
+    };
+
+    loadServicos();
+  }, [agendamento.servico]);
 
   // Função para carregar slots disponíveis
   const loadSlots = async (selectedDate: string) => {
@@ -143,7 +190,7 @@ export function EditAgendamentoForm({
       return false;
     }
 
-    if (!servico.trim()) {
+    if (!servico_id.trim()) {
       toast.error("Serviço é obrigatório.");
       return false;
     }
@@ -158,8 +205,11 @@ export function EditAgendamentoForm({
       return false;
     }
 
-    if (!PLACA_REGEX_DB.test(placa)) {
-      toast.error("Placa inválida. Use o formato AAA-9999 (ex.: ABC-1234).");
+    // ✅ CORREÇÃO: Validar com regex Mercosul
+    if (!PLACA_REGEX_MERCOSUL.test(placa)) {
+      toast.error(
+        "Placa inválida. Use o formato Mercosul ABC1E23 (ex.: ABC1E23)."
+      );
       return false;
     }
 
@@ -189,7 +239,8 @@ export function EditAgendamentoForm({
         modelo_veiculo !== agendamento.modelo_veiculo ||
         cor !== (agendamento.cor || "") ||
         placa !== agendamento.placa ||
-        servico !== agendamento.servico ||
+        servico_id !==
+          (servicos.find((s) => s.nome === agendamento.servico)?.id || "") ||
         data !== agendamento.data ||
         horario !== agendamento.horario ||
         observacoes !== (agendamento.observacoes || "");
@@ -209,7 +260,7 @@ export function EditAgendamentoForm({
           modelo_veiculo,
           cor: cor || null,
           placa,
-          servico,
+          servico_id, // ✅ Enviar servico_id em vez de servico
           data,
           horario,
           observacoes: observacoes || null,
@@ -225,9 +276,18 @@ export function EditAgendamentoForm({
       toast.success("Agendamento atualizado com sucesso!", { id: tid });
       onUpdated?.();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Erro ao atualizar agendamento:", err);
-      toast.error(err?.message || "Erro ao atualizar agendamento.", {
+      let errorMessage = "Erro ao atualizar agendamento.";
+      if (
+        err &&
+        typeof err === "object" &&
+        "message" in err &&
+        typeof (err as { message?: string }).message === "string"
+      ) {
+        errorMessage = (err as { message: string }).message;
+      }
+      toast.error(errorMessage, {
         id: tid,
       });
     } finally {
@@ -247,8 +307,8 @@ export function EditAgendamentoForm({
             <span className="text-yellow-600">⚠️</span>
             <p className="text-sm text-yellow-800">
               <strong>Atenção:</strong> Este agendamento não pode ser editado
-              pois está com status "{agendamento.status}". Apenas agendamentos
-              com status "agendado" podem ser modificados.
+              pois está com status {agendamento.status}. Apenas agendamentos com
+              status agendado podem ser modificados.
             </p>
           </div>
         </div>
@@ -285,12 +345,13 @@ export function EditAgendamentoForm({
       {/* Placa + Serviço */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <Label>Placa (AAA-9999) *</Label>
+          {/* ✅ CORREÇÃO: Atualizar label e placeholder */}
+          <Label>Placa (ABC1E23) *</Label>
           <Input
-            placeholder="ABC-1234"
+            placeholder="ABC1E23"
             value={placa}
-            onChange={(e) => setPlaca(normalizePlacaDB(e.target.value))}
-            maxLength={8}
+            onChange={(e) => setPlaca(normalizePlacaMercosul(e.target.value))}
+            maxLength={7} // ✅ CORREÇÃO: Mercosul tem 7 caracteres
             disabled={!canEditCompletely || submitting}
             className={
               !canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""
@@ -300,23 +361,32 @@ export function EditAgendamentoForm({
         <div>
           <Label>Serviço *</Label>
           <Select
-            value={servico}
-            onValueChange={setServico}
-            disabled={!canEditCompletely || submitting}
+            value={servico_id}
+            onValueChange={setServicoId}
+            disabled={!canEditCompletely || submitting || loadingServicos}
           >
             <SelectTrigger
               className={
                 !canEditCompletely ? "bg-gray-100 cursor-not-allowed" : ""
               }
             >
-              <SelectValue placeholder="Selecione um serviço" />
+              <SelectValue
+                placeholder={
+                  loadingServicos ? "Carregando..." : "Selecione um serviço"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               {servicos.map((s) => (
-                <SelectItem key={s.id} value={s.nome}>
+                <SelectItem key={s.id} value={s.id}>
                   {s.nome}
                 </SelectItem>
               ))}
+              {servicos.length === 0 && !loadingServicos && (
+                <SelectItem value="" disabled>
+                  Nenhum serviço disponível
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -462,7 +532,7 @@ export function EditAgendamentoForm({
         </button>
         <button
           type="submit"
-          disabled={submitting || !horario || !canEditCompletely}
+          disabled={submitting || !horario || !canEditCompletely || !servico_id}
           className="px-6 py-2 rounded-lg bg-[var(--accent)] text-[var(--accent-contrast)] font-medium transition-all hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? "Salvando..." : "Salvar Alterações"}

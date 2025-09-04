@@ -16,7 +16,7 @@ const Footer: FC = () => {
               Alpha Clean
             </h2>
             <p className="mt-3 text-sm leading-relaxed">
-              Lava jato profissional com mais de 10 anos de experiência,
+              Lava jato profissional com mais de 5 anos de experiência,
               oferecendo serviços de qualidade para seu veículo.
             </p>
 
@@ -69,7 +69,7 @@ const Footer: FC = () => {
               <li className="flex items-center gap-3">
                 <Phone className="shrink-0 text-[var(--accent)]" />
                 <a href="tel:+551199998888" className="hover:underline">
-                  (11) 9999-8888
+                  (71) 9999-8888
                 </a>
               </li>
               <li className="flex items-center gap-3">

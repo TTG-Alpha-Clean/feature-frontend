@@ -1,4 +1,3 @@
-// src/app/admin/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,6 +10,8 @@ import {
   DollarSign,
   Clock,
   Settings,
+  Grid3X3,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
@@ -20,6 +21,7 @@ import {
 } from "@/components/lists/adminServiceList";
 import { CarLogo } from "@/components/ui/carLogo";
 import { ServicosManagement } from "@/components/serviceManagement";
+import { AdminCalendar } from "@/components/calendars/adminCalendar";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -48,6 +50,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showServicos, setShowServicos] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   // Função para forçar refresh da lista
   const handleRefresh = () => {
@@ -75,7 +78,7 @@ export default function AdminDashboardPage() {
             toast.error(
               "Acesso negado. Apenas administradores podem acessar esta área."
             );
-            router.replace("/cliente");
+            router.push("/cliente");
           }
           return;
         }
@@ -84,142 +87,127 @@ export default function AdminDashboardPage() {
           setUser(userData.user);
           setChecking(false);
         }
-      } catch (error) {
+      } catch {
         if (!cancel) {
           document.cookie = "has_session=; Max-Age=0; Path=/; SameSite=Lax";
           document.cookie = "role=; Max-Age=0; Path=/; SameSite=Lax";
-          router.replace("/login?next=/admin");
+          router.push("/home");
         }
       }
     };
 
     checkAuth();
+
     return () => {
       cancel = true;
     };
   }, [router]);
 
-  // Buscar serviços disponíveis
+  // Carregamento de dados
   useEffect(() => {
-    const fetchServicos = async () => {
+    if (!user) return;
+
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/servicos`, {
-          credentials: "include",
-        });
+        console.log("🔄 Buscando dados...");
 
-        if (res.ok) {
-          const data = await res.json();
-          setServicos(data.data || []);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar serviços:", error);
-      }
-    };
-
-    if (user?.role === "admin") {
-      fetchServicos();
-    }
-  }, [user, refreshKey]);
-
-  // Buscar TODOS os agendamentos (admin vê tudo)
-  useEffect(() => {
-    if (!user || user.role !== "admin") return;
-
-    const fetchAgendamentos = async () => {
-      try {
-        setLoading(true);
-
-        const res = await fetch(
-          `${API_URL}/api/agendamentos?page=1&page_size=100`,
-          {
+        // Buscar agendamentos e serviços em paralelo
+        const [agendamentosRes, servicosRes] = await Promise.all([
+          fetch(`${API_URL}/api/agendamentos?page=1&page_size=100`, {
             credentials: "include",
-          }
-        );
+          }),
+          fetch(`${API_URL}/api/servicos`, {
+            credentials: "include",
+          }),
+        ]);
 
-        if (!res.ok) {
-          if (res.status === 401) {
-            router.replace("/login");
-            return;
-          }
-          throw new Error(`HTTP ${res.status}: Erro ao buscar agendamentos`);
+        // Processar serviços
+        if (servicosRes.ok) {
+          const servicosData = await servicosRes.json();
+          console.log("📋 Serviços carregados:", servicosData);
+          setServicos(servicosData.data || []);
         }
 
-        const data = await res.json();
+        // Processar agendamentos
+        if (agendamentosRes.ok) {
+          const data = await agendamentosRes.json();
+          console.log("📅 Dados brutos dos agendamentos:", data);
 
-        // Interface para o item retornado pela API
-        interface AgendamentoApiItem {
-          id: string;
-          data: string;
-          horario: string;
-          servico: string;
-          servico_nome?: string;
-          modelo_veiculo: string;
-          cor: string;
-          placa: string;
-          observacoes: string;
-          status: string;
-          valor?: number;
-          usuario_id: string;
-          usuario_nome?: string;
-          usuario_email?: string;
-          created_at: string;
-          updated_at: string;
+          // Tipo para os dados que vêm da API
+          interface AgendamentoApiItem {
+            id: string;
+            data: string;
+            horario: string;
+            servico_nome: string;
+            servico_valor: number;
+            modelo_veiculo: string;
+            cor: string;
+            placa: string;
+            observacoes: string;
+            status: string;
+            valor?: number;
+            usuario_id: string;
+            usuario_nome?: string;
+            usuario_email?: string;
+            created_at: string;
+            updated_at: string;
+          }
+
+          // Converter os dados da API para o formato do AdminServiceList
+          const agendamentosFormatados: AdminServiceItem[] =
+            data.data?.map((item: AgendamentoApiItem) => {
+              // Extrai data limpa (sem hora)
+              let dataLimpa = "";
+              if (item.data) {
+                dataLimpa = item.data.split("T")[0];
+              }
+
+              // Usar servico_valor que vem do JOIN no backend
+              const valor = item.servico_valor || 0;
+
+              console.log(
+                `💰 Agendamento ${item.id}: valor=${valor}, status=${item.status}, data=${dataLimpa}`
+              );
+
+              return {
+                id: item.id,
+                datetime: `${dataLimpa}T${item.horario || "09:00"}`,
+                servico: item.servico_nome || "Serviço não informado",
+                veiculo: item.modelo_veiculo,
+                modelo_veiculo: item.modelo_veiculo,
+                cor: item.cor,
+                placa: item.placa,
+                data: dataLimpa,
+                horario: item.horario,
+                observacoes: item.observacoes,
+                status: item.status,
+                valor: valor,
+                cliente: {
+                  id: item.usuario_id,
+                  nome: item.usuario_nome || "Cliente não encontrado",
+                  email: item.usuario_email || "",
+                  telefone: "",
+                },
+                created_at: item.created_at,
+                updated_at: item.updated_at,
+              };
+            }) || [];
+
+          console.log("📊 Agendamentos formatados:", agendamentosFormatados);
+          setAgendamentos(agendamentosFormatados);
         }
-
-        // Converte os dados da API para o formato do AdminServiceList
-        const agendamentosFormatados: AdminServiceItem[] =
-          data.data?.map((item: AgendamentoApiItem) => {
-            // Extrai data limpa (sem hora)
-            let dataLimpa = "";
-            if (item.data) {
-              dataLimpa = item.data.split("T")[0];
-            }
-
-            // Busca o valor do serviço na lista de serviços
-            const servicoInfo = servicos.find(
-              (s) =>
-                s.nome === item.servico ||
-                (item.servico_nome && s.nome === item.servico_nome)
-            );
-            const valor = servicoInfo?.valor || 50; // Valor padrão
-
-            return {
-              id: item.id,
-              datetime: `${dataLimpa}T${item.horario || "09:00"}`,
-              servico: item.servico_nome || item.servico, // Nome do serviço
-              veiculo: item.modelo_veiculo,
-              modelo_veiculo: item.modelo_veiculo,
-              cor: item.cor,
-              placa: item.placa,
-              data: dataLimpa,
-              horario: item.horario,
-              observacoes: item.observacoes,
-              status: item.status,
-              valor: valor,
-              // Dados do cliente CORRETOS (do JOIN)
-              cliente: {
-                id: item.usuario_id,
-                nome: item.usuario_nome || "Cliente não encontrado",
-                email: item.usuario_email || "",
-                telefone: "",
-              },
-              created_at: item.created_at,
-              updated_at: item.updated_at,
-            };
-          }) || [];
-
-        setAgendamentos(agendamentosFormatados);
       } catch (error) {
-        console.error("Erro ao buscar agendamentos:", error);
-        toast.error("Erro ao carregar agendamentos");
+        console.error("❌ Erro ao carregar dados:", error);
+        toast.error("Erro ao carregar dados");
         setAgendamentos([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAgendamentos();
-  }, [user, refreshKey, router, servicos]);
+    fetchData();
+  }, [user, refreshKey, router]);
 
   // Logout
   const handleLogout = async () => {
@@ -241,6 +229,14 @@ export default function AdminDashboardPage() {
       console.error("Erro no logout:", error);
       toast.error("Erro ao fazer logout", { id: toastId });
     }
+  };
+
+  // Função para filtrar agendamentos por data (quando clicado no calendário)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const handleDateClick = (date: string) => {
+    setSelectedDate(selectedDate === date ? null : date);
+    setViewMode("list"); // Volta para a lista quando clica numa data
   };
 
   // Loading inicial
@@ -267,22 +263,32 @@ export default function AdminDashboardPage() {
     agendados: agendamentos.filter((a) => a.status === "agendado").length,
     em_andamento: agendamentos.filter((a) => a.status === "em_andamento")
       .length,
-    concluidos: agendamentos.filter((a) => a.status === "finalizado").length,
+    finalizados: agendamentos.filter((a) => a.status === "finalizado").length,
     cancelados: agendamentos.filter((a) => a.status === "cancelado").length,
   };
 
-  // Receita do dia atual
+  // Cálculo de receita usando o campo valor correto
   const hoje = new Date().toISOString().split("T")[0];
-  // No arquivo admin/page.tsx
   const receitaHoje = agendamentos
-    .filter((a) => a.status === "finalizado" && a.data === hoje) // Mudança aqui
-    .reduce((sum, a) => sum + (a.valor || 0), 0);
+    .filter((a) => a.status === "finalizado" && a.data === hoje)
+    .reduce((sum, a) => {
+      const valor = a.valor || 0;
+      console.log(`💰 Receita hoje - Agendamento ${a.id}: +${valor}`);
+      return sum + valor;
+    }, 0);
 
   // Receita do mês atual
   const mesAtual = new Date().toISOString().substring(0, 7); // YYYY-MM
   const receitaMes = agendamentos
-    .filter((a) => a.status === "finalizado" && a.data?.startsWith(mesAtual)) // Mudança aqui
-    .reduce((sum, a) => sum + (a.valor || 0), 0);
+    .filter((a) => a.status === "finalizado" && a.data?.startsWith(mesAtual))
+    .reduce((sum, a) => {
+      const valor = a.valor || 0;
+      console.log(`💰 Receita mês - Agendamento ${a.id}: +${valor}`);
+      return sum + valor;
+    }, 0);
+
+  console.log(`💵 Receita hoje: ${receitaHoje}`);
+  console.log(`💵 Receita mês: ${receitaMes}`);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -290,6 +296,11 @@ export default function AdminDashboardPage() {
       currency: "BRL",
     }).format(value);
   };
+
+  // Filtrar agendamentos se uma data foi selecionada
+  const agendamentosFiltrados = selectedDate
+    ? agendamentos.filter((a) => a.data === selectedDate)
+    : agendamentos;
 
   return (
     <main className="min-h-screen bg-[var(--background)]">
@@ -342,7 +353,7 @@ export default function AdminDashboardPage() {
           />
         ) : (
           <>
-            {/* ✅ ESTATÍSTICAS - LAYOUT 2 LINHAS: 4 + 3 CARDS */}
+            {/* ESTATÍSTICAS - LAYOUT 2 LINHAS: 4 + 3 CARDS */}
             <div className="space-y-4 mb-8">
               {/* Primeira linha - 4 cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -350,22 +361,6 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Calendar className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-[var(--muted-foreground)]">
-                        Total
-                      </p>
-                      <p className="text-2xl font-bold text-[var(--foreground)]">
-                        {stats.total}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[var(--card-bg)] rounded-xl p-4 shadow-sm border border-[var(--card-border)]">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-yellow-600" />
                     </div>
                     <div>
                       <p className="text-sm text-[var(--muted-foreground)]">
@@ -401,10 +396,10 @@ export default function AdminDashboardPage() {
                     </div>
                     <div>
                       <p className="text-sm text-[var(--muted-foreground)]">
-                        Concluídos
+                        Finalizados
                       </p>
                       <p className="text-2xl font-bold text-[var(--foreground)]">
-                        {stats.concluidos}
+                        {stats.finalizados}
                       </p>
                     </div>
                   </div>
@@ -463,12 +458,60 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            {/* Lista de Agendamentos */}
-            <div className="mt-8">
-              <div className="flex items-center justify-between mb-6">
+            {/* Toggle entre Visualizações */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-2">
                 <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                  Todos os Agendamentos ({agendamentos.length})
+                  {selectedDate
+                    ? `Agendamentos de ${new Date(
+                        selectedDate + "T00:00:00"
+                      ).toLocaleDateString("pt-BR")}`
+                    : viewMode === "calendar"
+                    ? "Visão do Calendário"
+                    : `Todos os Agendamentos (${agendamentosFiltrados.length})`}
                 </h2>
+
+                {selectedDate && (
+                  <button
+                    onClick={() => setSelectedDate(null)}
+                    className="text-sm text-[var(--primary)] hover:text-[var(--primary)]/80 transition-colors"
+                  >
+                    × Limpar filtro
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`
+                    flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors
+                    ${
+                      viewMode === "list"
+                        ? "bg-[var(--primary)] text-white"
+                        : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]"
+                    }
+                  `}
+                >
+                  <Grid3X3 size={16} />
+                  <span>Lista</span>
+                </button>
+
+                <button
+                  onClick={() => setViewMode("calendar")}
+                  className={`
+                    flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors
+                    ${
+                      viewMode === "calendar"
+                        ? "bg-[var(--primary)] text-white"
+                        : "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]"
+                    }
+                  `}
+                >
+                  <CalendarDays size={16} />
+                  <span>Calendário</span>
+                </button>
+
                 <button
                   onClick={handleRefresh}
                   className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -477,23 +520,29 @@ export default function AdminDashboardPage() {
                   {loading ? "Carregando..." : "Atualizar"}
                 </button>
               </div>
-
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
-                    <p className="text-[var(--muted-foreground)]">
-                      Carregando agendamentos...
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <AdminServiceList
-                  items={agendamentos}
-                  onRefresh={handleRefresh}
-                />
-              )}
             </div>
+
+            {/* Conteúdo baseado no modo de visualização */}
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
+                  <p className="text-[var(--muted-foreground)]">
+                    Carregando agendamentos...
+                  </p>
+                </div>
+              </div>
+            ) : viewMode === "calendar" ? (
+              <AdminCalendar
+                agendamentos={agendamentos}
+                onDateClick={handleDateClick}
+              />
+            ) : (
+              <AdminServiceList
+                items={agendamentosFiltrados}
+                onRefresh={handleRefresh}
+              />
+            )}
           </>
         )}
       </section>

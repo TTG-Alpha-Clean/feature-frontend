@@ -1,9 +1,11 @@
-// src/components/admin/servicosManagement.tsx
+// src/components/serviceManagement.tsx - VERSÃO ATUALIZADA
 "use client";
 
 import { useState } from "react";
+import { Plus, DollarSign, Save, X } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { Plus, Edit, Trash2, Save, X, DollarSign } from "lucide-react";
+import EditButton from "@/components/ui/editButton";
+import DeleteButton from "@/components/ui/deleteButton";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -12,8 +14,6 @@ interface Servico {
   nome: string;
   valor: number;
   ativo: boolean;
-  created_at?: string;
-  updated_at?: string;
 }
 
 interface Props {
@@ -26,11 +26,6 @@ interface ApiError {
   error?: string;
 }
 
-interface FormData {
-  nome: string;
-  valor: string;
-}
-
 export function ServicosManagement({
   servicos,
   onServicoChange,
@@ -38,10 +33,10 @@ export function ServicosManagement({
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [formData, setFormData] = useState<FormData>({ nome: "", valor: "" });
   const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({ nome: "", valor: "" });
 
-  const formatCurrency = (value: number): string => {
+  const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -49,8 +44,14 @@ export function ServicosManagement({
   };
 
   const handleCreate = async (): Promise<void> => {
-    if (!formData.nome.trim() || !formData.valor) {
+    if (!formData.nome.trim() || !formData.valor.trim()) {
       toast.error("Nome e valor são obrigatórios");
+      return;
+    }
+
+    const valor = parseFloat(formData.valor);
+    if (isNaN(valor) || valor <= 0) {
+      toast.error("Valor deve ser um número maior que zero");
       return;
     }
 
@@ -58,12 +59,9 @@ export function ServicosManagement({
     try {
       const res = await fetch(`${API_URL}/api/servicos`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: formData.nome.trim(),
-          valor: parseFloat(formData.valor),
-        }),
+        credentials: "include",
+        body: JSON.stringify({ nome: formData.nome.trim(), valor }),
       });
 
       if (!res.ok) {
@@ -72,8 +70,8 @@ export function ServicosManagement({
       }
 
       toast.success("Serviço criado com sucesso!");
-      setFormData({ nome: "", valor: "" });
       setIsCreating(false);
+      setFormData({ nome: "", valor: "" });
       onServicoChange();
     } catch (error) {
       const errorMessage =
@@ -85,8 +83,14 @@ export function ServicosManagement({
   };
 
   const handleEdit = async (servico: Servico): Promise<void> => {
-    if (!formData.nome.trim() || !formData.valor) {
+    if (!formData.nome.trim() || !formData.valor.trim()) {
       toast.error("Nome e valor são obrigatórios");
+      return;
+    }
+
+    const valor = parseFloat(formData.valor);
+    if (isNaN(valor) || valor <= 0) {
+      toast.error("Valor deve ser um número maior que zero");
       return;
     }
 
@@ -94,11 +98,12 @@ export function ServicosManagement({
     try {
       const res = await fetch(`${API_URL}/api/servicos/${servico.id}`, {
         method: "PUT",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           nome: formData.nome.trim(),
-          valor: parseFloat(formData.valor),
+          valor,
+          ativo: servico.ativo,
         }),
       });
 
@@ -107,7 +112,7 @@ export function ServicosManagement({
         throw new Error(error?.error || "Erro ao editar serviço");
       }
 
-      toast.success("Serviço atualizado com sucesso!");
+      toast.success("Serviço editado com sucesso!");
       setEditingId(null);
       setFormData({ nome: "", valor: "" });
       onServicoChange();
@@ -180,8 +185,9 @@ export function ServicosManagement({
           <button
             onClick={onClose}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 
-                       transition-colors"
+                       transition-colors text-[var(--foreground)]"
           >
+            <X size={16} />
             Voltar
           </button>
         </div>
@@ -189,45 +195,33 @@ export function ServicosManagement({
 
       {/* Formulário de criação */}
       {isCreating && (
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6">
+        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6">
           <h3 className="text-lg font-semibold mb-4 text-[var(--foreground)]">
             Criar Novo Serviço
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                Nome do Serviço
-              </label>
-              <input
-                type="text"
-                value={formData.nome}
-                onChange={(e) =>
-                  setFormData({ ...formData, nome: e.target.value })
-                }
-                placeholder="Ex: Lavagem Premium"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 
-                           focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                Valor (R$)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.valor}
-                onChange={(e) =>
-                  setFormData({ ...formData, valor: e.target.value })
-                }
-                placeholder="0,00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 
-                           focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 mt-4">
+          <div className="flex items-center gap-4">
+            <input
+              type="text"
+              placeholder="Nome do serviço"
+              value={formData.nome}
+              onChange={(e) =>
+                setFormData({ ...formData, nome: e.target.value })
+              }
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 
+                         focus:ring-blue-500 focus:border-blue-500"
+            />
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Valor (R$)"
+              value={formData.valor}
+              onChange={(e) =>
+                setFormData({ ...formData, valor: e.target.value })
+              }
+              className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 
+                         focus:ring-blue-500 focus:border-blue-500"
+            />
             <button
               onClick={handleCreate}
               disabled={loading}
@@ -327,25 +321,19 @@ export function ServicosManagement({
                         </span>
                       </div>
                     </div>
+
+                    {/* ✅ USANDO OS COMPONENTES EditButton e DeleteButton */}
                     <div className="flex gap-2">
-                      <button
+                      <EditButton
                         onClick={() => startEditing(servico)}
                         disabled={loading || isCreating}
-                        className="flex items-center gap-1 px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 
-                                   rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Edit size={16} />
-                        Editar
-                      </button>
-                      <button
+                        title="Editar serviço"
+                        size="md"
+                      />
+                      <DeleteButton
                         onClick={() => handleDelete(servico)}
                         disabled={loading || isCreating}
-                        className="flex items-center gap-1 px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 
-                                   rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <Trash2 size={16} />
-                        Excluir
-                      </button>
+                      />
                     </div>
                   </>
                 )}

@@ -55,18 +55,23 @@ export default function Header({ currentPage = "home" }: HeaderProps) {
             </li>
           </ul>
 
-          <button className="rounded-lg flex items-center justify-center gap-3 px-6 py-3 text-[var(--accent)] bg-[var(--background)] border-2 border-[var(--accent)] cursor-pointer hover:bg-[var(--accent)] hover:text-[var(--background)] transition-all duration-300 font-medium">
-            <Calendar size={20} />
-            <span>Reservar</span>
-          </button>
+          <Link href="/login">
+            <button className="rounded-lg flex items-center justify-center gap-3 px-6 py-3 text-[var(--accent)] bg-[var(--background)] border-2 border-[var(--accent)] cursor-pointer hover:bg-[var(--accent)] hover:text-[var(--background)] transition-all duration-300 font-medium">
+              <Calendar size={20} />
+              <span>Reservar</span>
+            </button>
+          </Link>
         </nav>
 
         {/* Mobile - Botão Reservar + Menu Hamburguer */}
         <div className="flex md:hidden items-center gap-3">
-          <button className="rounded-lg flex items-center justify-center gap-2 px-4 py-2 text-[var(--accent)] bg-[var(--background)] border-2 border-[var(--accent)] cursor-pointer hover:bg-[var(--accent)] hover:text-[var(--background)] transition-all duration-300 font-medium text-sm">
+          <Link
+            className="rounded-lg flex items-center justify-center gap-2 px-4 py-2 text-[var(--accent)] bg-[var(--background)] border-2 border-[var(--accent)] cursor-pointer hover:bg-[var(--accent)] hover:text-[var(--background)] transition-all duration-300 font-medium text-sm"
+            href="/login"
+          >
             <Calendar size={18} />
             <span>Reservar</span>
-          </button>
+          </Link>
 
           <button
             onClick={toggleMenu}

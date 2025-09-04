@@ -20,7 +20,7 @@ export default function HeroSection() {
       <div className="h-16"></div>
 
       {/* Container principal */}
-      <div className="relative z-10 px-4 sm:px-8 lg:px-24 py-6 sm:py-10 min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-12">
+      <div className="relative z-10 px-4 sm:px-8 lg:px-24 py-6 sm:py-10 min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-48">
         {/* Conteúdo */}
         <div className="w-full max-w-2xl text-center lg:text-left">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
@@ -82,7 +82,7 @@ export default function HeroSection() {
         </div>
 
         {/* Cards - responsivo */}
-        <div className="w-full lg:w-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-3 gap-4 sm:gap-6 lg:gap-8 mt-8 lg:mt-0">
+        <div className="w-full lg:w-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-3 gap-4 sm:gap-6 lg:gap-12 mt-8 lg:mt-0">
           <Card
             title="Qualidade Garantida"
             description="Produtos profissionais e técnicas especializadas"

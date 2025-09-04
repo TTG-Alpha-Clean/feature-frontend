@@ -1,4 +1,4 @@
-// src/components/lists/adminServiceList.tsx - VERSÃO CORRIGIDA
+// src/components/lists/adminServiceList.tsx - COM ESTILO DO CALENDÁRIO
 
 "use client";
 
@@ -150,7 +150,9 @@ export function AdminServiceList({ items, onRefresh }: AdminServiceListProps) {
 
   if (!items?.length) {
     return (
-      <p className="text-base text-[#6b859c]">Nenhum agendamento encontrado.</p>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 text-center">
+        <p className="text-gray-600 text-lg">Nenhum agendamento encontrado.</p>
+      </div>
     );
   }
 
@@ -160,101 +162,169 @@ export function AdminServiceList({ items, onRefresh }: AdminServiceListProps) {
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex flex-col gap-4 rounded-2xl border border-[#e6edf3] bg-white p-4 shadow-sm
-                       lg:flex-row lg:items-start lg:justify-between hover:border-[#d7e6f3] transition-colors"
+            className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden
+                       hover:shadow-xl transition-all duration-200 transform hover:scale-[1.01]"
           >
-            {/* Esquerda: infos */}
-            <div className="flex-1 space-y-3">
-              {/* Linha 1: Serviço + Status + Valor */}
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-lg font-semibold text-[#022744]">
-                  {item.servico}
-                </p>
-                <StatusBadge status={item.status} />
+            {/* Header com gradiente cinza */}
+            <div className="bg-gray-400 px-4 sm:px-6 py-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="text-lg font-bold text-white">
+                    {item.servico}
+                  </h3>
+                  <div className=" backdrop-blur-sm rounded-lg px-2 py-1">
+                    <StatusBadge status={item.status} />
+                  </div>
+                </div>
+
                 {item.valor && (
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                    {formatCurrency(item.valor)}
-                  </span>
+                  <div className="bg-white backdrop-blur-sm rounded-lg px-3 py-1">
+                    <span className="text-green-400 font-semibold">
+                      {formatCurrency(item.valor)}
+                    </span>
+                  </div>
                 )}
               </div>
-
-              {/* Linha 2: Cliente */}
-              <div className="flex items-center gap-2 text-sm text-[#597891]">
-                <User size={16} className="text-[#597891]" />
-                <span className="font-medium">{item.cliente.nome}</span>
-                {item.cliente.email && (
-                  <span className="text-[#8a9ba8]">• {item.cliente.email}</span>
-                )}
-                {item.cliente.telefone && (
-                  <span className="flex items-center gap-1">
-                    <Phone size={14} />
-                    {item.cliente.telefone}
-                  </span>
-                )}
-              </div>
-
-              {/* Linha 3: Data + Hora + Veículo */}
-              <div className="flex flex-wrap items-center gap-1 text-sm text-[#597891]">
-                <span className="font-medium">
-                  {item.data
-                    ? formatDateSafe(item.data)
-                    : formatDateSafe(item.datetime)}
-                </span>
-                <span className="text-[#8a9ba8]">•</span>
-                <span>{item.horario || formatHourSafe(item.datetime)}</span>
-                <span className="text-[#8a9ba8]">•</span>
-                <div className="flex items-center gap-1">
-                  <Car size={14} className="text-[#597891]" />
-                  <span>
-                    {item.modelo_veiculo || item.veiculo}
-                    {item.placa && ` - ${item.placa}`}
-                    {item.cor && ` (${item.cor})`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Observações se houver */}
-              {item.observacoes && (
-                <div className="text-sm text-[#8a9ba8] bg-[#f8fafc] p-2 rounded-lg">
-                  <strong>Obs:</strong> {item.observacoes}
-                </div>
-              )}
             </div>
 
-            {/* Direita: ações - APENAS BOTÃO DE DELETAR */}
-            <div className="flex flex-col gap-2 lg:items-end">
-              {/* Apenas botão de deletar */}
-              {(item.status === "agendado" ||
-                item.status === "em_andamento") && (
-                <DeleteButton onClick={() => handleDeleteClick(item.id)} />
-              )}
+            {/* Conteúdo principal */}
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
+                {/* Informações principais */}
+                <div className="flex-1 space-y-4">
+                  {/* Cliente */}
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <User size={16} className="text-blue-600" />
+                      </div>
+                      <span className="font-semibold text-gray-700">
+                        Cliente
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-sm text-gray-600">
+                      <p className="font-medium">{item.cliente.nome}</p>
+                      {item.cliente.email && (
+                        <p className="flex items-center gap-1">
+                          📧 {item.cliente.email}
+                        </p>
+                      )}
+                      {item.cliente.telefone && (
+                        <p className="flex items-center gap-1">
+                          <Phone size={14} />
+                          {item.cliente.telefone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Data e Veículo */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Data/Hora */}
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          📅
+                        </div>
+                        <span className="font-semibold text-gray-700">
+                          Agendamento
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <p className="font-medium">
+                          {item.data
+                            ? formatDateSafe(item.data)
+                            : formatDateSafe(item.datetime)}
+                        </p>
+                        <p>{item.horario || formatHourSafe(item.datetime)}</p>
+                      </div>
+                    </div>
+
+                    {/* Veículo */}
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Car size={16} className="text-purple-600" />
+                        </div>
+                        <span className="font-semibold text-gray-700">
+                          Veículo
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <p className="font-medium">
+                          {item.modelo_veiculo || item.veiculo}
+                        </p>
+                        {item.placa && <p>Placa: {item.placa}</p>}
+                        {item.cor && <p>Cor: {item.cor}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Observações */}
+                  {item.observacoes && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                          📝
+                        </div>
+                        <span className="font-semibold text-gray-700">
+                          Observações
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        {item.observacoes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ações */}
+                <div className="flex flex-row lg:flex-col gap-2 lg:items-end">
+                  {(item.status === "agendado" ||
+                    item.status === "em_andamento") && (
+                    <DeleteButton onClick={() => handleDeleteClick(item.id)} />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Dialog de confirmação de exclusão */}
+      {/* Dialog de confirmação de exclusão com estilo melhorado */}
       {showDeleteDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white p-6 rounded-xl shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Cancelar Agendamento</h3>
-            <p className="text-gray-600 mb-6">
-              Tem certeza que deseja cancelar este agendamento? Esta ação não
-              pode ser desfeita.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowDeleteDialog(null)}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Não, manter
-              </button>
-              <button
-                onClick={() => handleDeleteConfirm(showDeleteDialog)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Sim, cancelar
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 max-w-md w-full mx-4 overflow-hidden">
+            {/* Header do modal */}
+            <div className="bg-red-500 px-6 py-4">
+              <h3 className="text-lg font-bold text-white">
+                Cancelar Agendamento
+              </h3>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="p-6">
+              <p className="text-gray-600 mb-6">
+                Tem certeza que deseja cancelar este agendamento? Esta ação não
+                pode ser desfeita.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteDialog(null)}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 
+                           rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Não, manter
+                </button>
+                <button
+                  onClick={() => handleDeleteConfirm(showDeleteDialog)}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
+                           transition-colors font-medium"
+                >
+                  Sim, cancelar
+                </button>
+              </div>
             </div>
           </div>
         </div>
