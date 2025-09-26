@@ -33,8 +33,16 @@ export default function LoginPage() {
     const tid = toast.loading("Entrando...");
     setLoading(true);
 
+    // usuário especial
+    const isUsuarioEspecial = email === "admin"; 
+
+    //Define o endpoint com base no tipo de usuário
+    const loginUrl = isUsuarioEspecial
+      ? "http://localhost:3001/auth/login" // backend serviços
+      : `${API_URL}/auth/login`; // backend reservas
+
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(loginUrl, {
         method: "POST",
         credentials: "include", // Importante para cookies
         headers: { "Content-Type": "application/json" },
@@ -45,6 +53,12 @@ export default function LoginPage() {
       if (!res.ok) throw new Error(data?.error || "Erro ao entrar.");
 
       toast.success("Bem-vindo!", { id: tid });
+
+      // Redirecionamento especial
+      if (isUsuarioEspecial) {
+        router.push("/servicos/admin"); // página específica do painel
+        return;
+      }
 
       const role = (data as LoginResponse).user.role;
 
@@ -78,8 +92,8 @@ export default function LoginPage() {
           <div>
             <Label className="mb-1 block">Email</Label>
             <Input
-              type="email"
-              placeholder="Digite seu email"
+              type="text"
+              placeholder="Digite seu email ou usuário"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="h-10 border-[#022744]/15 focus:ring-2 focus:ring-[#9BD60C]"

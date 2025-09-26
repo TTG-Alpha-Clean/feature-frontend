@@ -57,7 +57,7 @@ const TypeIcon: React.FC<{ type: string; className?: string }> = ({
   className = "h-5 w-5 text-[var(--accent)]",
 }) => {
   switch (type.toLowerCase()) {
-    case "básico":
+    case "  ":
     case "basico":
       return (
         <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden>
@@ -177,7 +177,7 @@ const CheckItem: React.FC<{ children: React.ReactNode }> = ({ children }) => (
  * ========================== */
 
 // Compact: 3 por linha no desktop
-const ServiceCardCompact: React.FC<{ service: Service }> = ({ service }) => {
+export const ServiceCardCompact: React.FC<{ service: Service }> = ({ service }) => {
   const { type, title, subtitle, price, time, description, informations } = service;
   const visible = Array.isArray(informations) ? informations.slice(0, 3) : [];
 
@@ -267,7 +267,7 @@ const ServiceCardCompact: React.FC<{ service: Service }> = ({ service }) => {
 
 
 // Detailed: 2 por linha no desktop (imagem acompanha o card)
-const ServiceCardDetailed: React.FC<{ service: Service; highlightLabel?: string }> = ({
+export const ServiceCardDetailed: React.FC<{ service: Service; highlightLabel?: string }> = ({
   service,
   highlightLabel,
 }) => {
