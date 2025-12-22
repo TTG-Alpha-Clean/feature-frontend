@@ -15,8 +15,7 @@ export default function AboutSection() {
           <div className="space-y-4 sm:space-y-6 text-[var(--muted-foreground)] text-base sm:text-lg leading-relaxed">
             <p>
               A <strong className="text-[var(--primary)]">Alpha Clean – Estética Automotiva</strong>{' '}
-              nasceu do sonho de dois amigos, <strong>Lucas Almeida</strong> e <strong>Gabriel Dias</strong>, 
-              apaixonados por carros e movidos pelo desejo de transformar essa paixão em um negócio.
+              nasceu da paixão por carros e do desejo de transformar essa paixão em um negócio.
             </p>
 
             <p>
